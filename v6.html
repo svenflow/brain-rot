@@ -359,8 +359,20 @@ void main() {
     float n4 = fbm(q - vec2(0.0, 0.01), time);
     vec2 curl = vec2(n3 - n4, n1 - n2) * 20.0;
 
-    // Advect coordinates
-    vec2 advected = q + curl * 0.15;
+    // Hull pulsating force - gentle outward displacement from logo
+    float hull = getLogoHull(uv);
+    float hullDist = 1.0 - hull;
+
+    // Pulsating wave from hull
+    float wave = sin(hullDist * 12.0 - t * 1.5) * 0.5 + 0.5;
+    wave *= smoothstep(0.9, 0.2, hullDist); // Fade with distance
+
+    // Direction: outward from center
+    vec2 outward = normalize(p + 0.001);
+    vec2 hullForce = outward * wave * 0.3;
+
+    // Advect coordinates with curl + hull force
+    vec2 advected = q + curl * 0.15 + hullForce;
 
     // Multiple smoke layers at different depths
     float smoke1 = fbm(advected, time);
