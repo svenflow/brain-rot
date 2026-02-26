@@ -508,6 +508,7 @@
             uniform float uTime;
             out vec4 vColor;
             out float vSpeed;
+            out float vHullFade;
 
             vec3 palette(float t) {
                 // Pink/magenta palette
@@ -530,6 +531,10 @@
                 float speed = length(vel);
                 vSpeed = speed;
 
+                // Fade out particles near center (logo area)
+                float distFromCenter = length(pos);
+                vHullFade = smoothstep(0.15, 0.35, distFromCenter);
+
                 // Color based on speed and id
                 float colorIndex = float(id) / float(texSize * texSize) + speed * 5.0 + uTime * 0.1;
                 vColor = vec4(palette(colorIndex), 1.0);
@@ -539,7 +544,7 @@
                 vec2 screenPos = pos * vec2(1.0 / aspect, 1.0);
 
                 gl_Position = vec4(screenPos, 0.0, 1.0);
-                gl_PointSize = 4.0 + speed * 100.0 + sin(float(id) * 0.1 + uTime * 3.0) * 1.0;
+                gl_PointSize = (4.0 + speed * 100.0 + sin(float(id) * 0.1 + uTime * 3.0) * 1.0) * vHullFade;
             }
         `;
 
@@ -548,6 +553,7 @@
             precision highp float;
             in vec4 vColor;
             in float vSpeed;
+            in float vHullFade;
             out vec4 fragColor;
 
             void main() {
@@ -558,6 +564,7 @@
                 // Softer, more glowy falloff
                 float alpha = exp(-r2 * 2.5);
                 alpha *= 0.6 + vSpeed * 6.0;
+                alpha *= vHullFade; // Fade near hull
 
                 // Hot core with glow
                 vec3 col = vColor.rgb;
