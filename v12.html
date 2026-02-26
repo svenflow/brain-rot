@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Rot - GPU Particle Physics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; background: #000; overflow: hidden; }
+        #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+        .logo { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; height: 50vh; pointer-events: none; }
+        .logo svg { height: 100%; width: auto; }
+        #svgCanvas { display: none; }
+    </style>
+</head>
+<body>
+    <canvas id="particles"></canvas>
+    <canvas id="svgCanvas"></canvas>
+    <div class="logo" id="logoContainer">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 703.91 933.59">
+  <defs><style>.cls-4 { fill: #ed2890; } .cls-2 { fill: #231f20; }</style></defs>
+  <path class="cls-4" d="M472.72,566.76l12.8.04c-3.33,37.07-34.8,70.35-61.29,93.11-.77.66.61,5.35-.05,6.01-12.46,12.52-29.87,22.91-44.74,32.44.15,19.62-.15,39.56-.28,59.2-3.39,4.51-12.41,13.14-16.72,17.43-5.56-.11-11.29.02-16.86.08-5.39-5.11-10.93-10.8-16.23-16.06-.44-20.33-.66-40.65-.63-60.98-14.7-9.25-32.85-20.39-46.01-31.45l2.32-6.28c-31.86-24.67-54.64-51.75-63.6-91.51l.84-1.14c3.4-.85,8.8-.48,12.47-.39.65,3.89,1.37,7.67,2.29,11.51,11.45,48,65.21,80.95,105.65,104.73.65,11.61-1.92,63,2.01,69.06l1.32.21c2.56-3.76,1.63-26.24,1.75-32.51,3.9-.14,8.38,0,12.33.05.6,7.44-.33,27.22,1.96,32.34l1.16.19c.44-.6.87-1.18,1.3-1.77,1.6-18.61.87-49.89.87-67.43,37.41-22.2,79.94-49.45,99.82-89.19,4.02-8.04,5.98-18.8,7.51-27.67Z"/>
+  <path class="cls-4" d="M351.93,312.87c5.57.35,65.95,49.84,75.44,57.32.57,21.43.21,46.92-.46,68.33,3.18,2.98,14.12,10.09,18.32,13.23,16.38,12.23,26.78,22.43,38.1,39.1,4.76-2.23,12.1-6.72,17.22-4.24l.31,1.47c-2.85,5.52-7.66,6.82-13.36,9.42,2.88,7.24,5.83,14.44,8.85,21.62,9.18-.5,29.19-4.98,33.99-3.61l.35.99c-4.94,6.14-24.68,9.22-32.45,10.44.6,5.05,2.6,11.16-.05,15.03-2.01,1.29-3.94.84-6.46.7-7.38-52.91-34.69-73.57-77.31-100.65-1.01-18.21,1.27-51-.97-67.05-.84-6.07-50.76-42.68-58.09-46.95-8.72-2.81-48.65,34.12-57.96,40.46-7.89,5.37-5.7,23.4-5.67,32.76.15,13.67.13,27.34-.07,41.02-31.11,20.28-54.8,35.11-69.36,71.88-3.61,9.11-4.97,20.64-8.24,28.72l-3.12.73c-5.99-1.68-3.13-10.35-2.43-15.51-6.98-1.45-30.21-6.1-33.02-11.63l.71-1.68c4.41-2.87,11.41,2.38,16.46,3.15,5.85.89,12.06.92,17.97,1.14l8.38-20.66c-6.04-3.12-10.12-4.57-14.13-10.19l1.09-1.82c5.01-1.01,12.76,2.94,17.32,4.9,16.3-25.71,32.12-35.03,55.52-52.34l-.35-68.39c14.69-12.59,30.8-24.36,45.67-36.86,8.56-7.2,18.24-15.07,27.79-20.81Z"/>
+  <path class="cls-4" d="M349.45,339.45c3.13-.16,3.82-.35,6.75.47,2.31,3.3,1.67,32.78,1.75,38.83,2.88,3.66,4.89,6.45,7.45,10.34.48,10.73-.22,21.56.39,32.79,5.49,4.9,18.24,11.81,24.92,16.04,27.44,17.35,58.63,33.77,77.77,60.52,5.97,8.34,18.24,33.76,16.35,43.77-1.97,1.66-8.27,1.74-8.61.23-13.29-60.43-73.03-84.42-121.05-115.68-.38-.22-1.99-.7-2.24-.54-44.13,29.44-102.94,51.11-119.2,106.28-1.09,3.69-1.96,9.52-5.27,11.48-3.08,0-3.51.5-5.85-.94-1.46-3.43-.5-6.41.23-9.84,11.07-52.26,61.55-75.35,103.04-101.4,4.57-2.87,9.37-5.42,13.63-8.86l.69-.56c1.05-10.07.45-22.82.83-33.48,2.6-4.34,4.47-6.4,7.82-10.28.32-12.8-.41-26.48.61-39.15Z"/>
+  <path class="cls-2" d="M347.73,531.51c15.53-3.3,30.83,6.42,34.15,21.69s-6.6,30.3-22.13,33.53c-15.49,3.22-30.71-6.49-34.02-21.72-3.31-15.22,6.54-30.21,22.01-33.5Z"/>
+  <path class="cls-4" d="M347.57,535.25c8.75-2.23,18.05.38,24.29,6.82,6.24,6.44,8.45,15.69,5.76,24.19-2.69,8.49-9.84,14.89-18.68,16.72-13.26,2.74-26.31-5.43-29.4-18.4-3.09-12.97,4.92-25.99,18.03-29.33Z"/>
+  <path class="cls-2" d="M349.49,543.66c8.35-2.56,17.21,2.01,19.83,10.21,2.61,8.2-2.03,16.93-10.37,19.51-8.35,2.58-17.24-1.99-19.85-10.21-2.61-8.21,2.04-16.95,10.4-19.51Z"/>
+  <path class="cls-4" d="M346.15,144.34c13.37-3.33,26.95,4.67,30.27,17.84,3.31,13.17-4.89,26.48-18.31,29.67-13.31,3.16-26.71-4.84-30-17.91-3.29-13.07,4.77-26.29,18.04-29.6Z"/>
+  <path class="cls-4" d="M363.25,129c3.83.31,9.54,3.68,12.62,5.96,11.13,8.22,16.75,22.46,15.59,35.92-.94,11.04-6.38,21.25-15.05,28.32-5.98,4.85-11.21,6.86-18.37,9.48-1.29,8.51-1.55,23.99-.35,32.56,14.5,12.69,18.61,22.67,1.07,35.77-1.1,6.43-.95,11.34-.96,17.8,1.72,1.31,3.94,2.9,5.55,4.27l-.28,12.65c-3.34-1.68-7.22-3.79-10.7-4.99l-9.05,4.75c-.42-4.26-.84-8.08-.88-12.35l5.51-4.37c0-5.75.07-11.34-.29-17.09-16.25-12.9-17.59-22.01-.28-35.77,1.83-7.81,2.61-23.71.02-31.36-.81-2.4-15.61-8.82-18.77-11.47-25.67-21.57-18.83-58.08,11.92-70.2l.16,9.78c-17.5,10.97-27.58,26.93-14.82,46.32,4.55,6.93,11.78,11.73,20.02,13.28,8.53,1.65,17.52.1,24.74-4.76,6.83-4.62,11.52-11.72,13.03-19.73,1.43-8.07-.41-16.37-5.13-23.12-3.58-5-9.76-10.38-15.87-11.98-.18-2.14.37-7.27.57-9.67Z"/>
+  <path class="cls-2" d="M349.59,253.79c2.46-1.08,5.33-.75,7.47.86,2.14,1.61,3.23,4.23,2.83,6.86-.4,2.62-2.22,4.82-4.75,5.74-3.74,1.36-7.9-.45-9.4-4.08-1.5-3.63.2-7.78,3.85-9.37Z"/>
+  <path class="cls-4" d="M347.58,60.05c-3.81-2.31-6.12-3.35-8.78-6.97-5.91-8.02-3.89-17.63,5.26-22.63,4.14-2.3,9.06-2.83,13.62-1.48,9.66,2.91,11.55,12.25,9.18,20.94-1.4,5.12-5.97,7.56-10.37,9.9-.51,17.97-.23,40.16,1.29,58.23.05.7,2.38,7.49,2.79,8.91,1.3,2,.42,1.35,2.69,2.05-.2,2.4-.74,7.54-.57,9.67-1.9.78-14.58.4-17.23.22-4.35-.3-1.68-7.58-.77-10.45.18-4.97,2.86-9.17,2.9-12.75.22-17.88,1-37.97,0-55.65Z"/>
+  <path class="cls-2" d="M349.68,37.26c3.77-1.26,7.86.71,9.15,4.42,1.3,3.7-.71,7.73-4.47,9.01-3.77,1.28-7.89-.69-9.18-4.4-1.3-3.71.72-7.76,4.5-9.02Z"/>
+</svg>
+    </div>
+    <script>
+        // WebGL 2 GPU Particle System with Framebuffer Ping-Pong
+        // Features: FLOAT texture with HALF_FLOAT fallback for iOS Safari 15+
+        const canvas = document.getElementById('particles');
+        const gl = canvas.getContext('webgl2');
+        const svgCanvas = document.getElementById('svgCanvas');
+        const svgCtx = svgCanvas.getContext('2d');
+
+        if (!gl) {
+            document.body.innerHTML = '<div style="color:#ed2890;text-align:center;padding:50px">WebGL 2 required</div>';
+            throw new Error('WebGL 2 not supported');
+        }
+
+        // Configuration
+        const PARTICLE_TEX_SIZE = 128; // 128x128 = 16384 particles
+        const TOTAL_PARTICLES = PARTICLE_TEX_SIZE * PARTICLE_TEX_SIZE;
+
+        let logoTexture = null;
+        let logoRect = { x: 0, y: 0, w: 1, h: 1 };
+        let particleStateA, particleStateB;
+        let updateProgram, renderProgram, bgProgram;
+        let currentState = 0;
+        let quadVAO, particleVAO;
+
+        // Detect float texture support with proper fallback
+        let useFloat32 = true;
+        let internalFormat, dataType, ArrayType;
+
+        function detectFloatSupport() {
+            // Try FLOAT first (better precision)
+            const extFloat = gl.getExtension('EXT_color_buffer_float');
+
+            if (extFloat) {
+                // Test if we can actually render to FLOAT
+                const testTex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, testTex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 4, 4, 0, gl.RGBA, gl.FLOAT, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+                const testFB = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, testFB);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, testTex, 0);
+
+                const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.deleteTexture(testTex);
+                gl.deleteFramebuffer(testFB);
+
+                if (status === gl.FRAMEBUFFER_COMPLETE) {
+                    console.log('Using FLOAT32 textures');
+                    internalFormat = gl.RGBA32F;
+                    dataType = gl.FLOAT;
+                    ArrayType = Float32Array;
+                    return;
+                }
+            }
+
+            // Fallback to HALF_FLOAT (iOS Safari 15+)
+            const extHalf = gl.getExtension('EXT_color_buffer_half_float');
+            if (extHalf || true) { // WebGL2 has HALF_FLOAT built-in
+                console.log('Using HALF_FLOAT textures (iOS fallback)');
+                useFloat32 = false;
+                internalFormat = gl.RGBA16F;
+                dataType = gl.HALF_FLOAT;
+                ArrayType = Float32Array; // We'll convert to half-float on upload
+                return;
+            }
+
+            throw new Error('No float texture support');
+        }
+
+        detectFloatSupport();
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            updateLogoTexture();
+        }
+
+        function updateLogoTexture() {
+            const logo = document.querySelector('.logo svg');
+            if (!logo) return;
+            const rect = logo.getBoundingClientRect();
+            logoRect.x = rect.left / window.innerWidth;
+            logoRect.y = 1.0 - (rect.bottom / window.innerHeight);
+            logoRect.w = rect.width / window.innerWidth;
+            logoRect.h = rect.height / window.innerHeight;
+            svgCanvas.width = 256; svgCanvas.height = 256;
+            const img = new Image();
+            const svgData = new XMLSerializer().serializeToString(logo);
+            const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(svgBlob);
+            img.onload = function() {
+                svgCtx.clearRect(0, 0, 256, 256);
+                svgCtx.drawImage(img, 0, 0, 256, 256);
+                URL.revokeObjectURL(url);
+                if (!logoTexture) logoTexture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, logoTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, svgCanvas);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            };
+            img.src = url;
+        }
+
+        // Create shader program with error reporting
+        function createProgram(vsSource, fsSource, name) {
+            const vs = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vs, vsSource);
+            gl.compileShader(vs);
+            if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+                console.error(name + ' VS:', gl.getShaderInfoLog(vs));
+            }
+
+            const fs = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fs, fsSource);
+            gl.compileShader(fs);
+            if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+                console.error(name + ' FS:', gl.getShaderInfoLog(fs));
+            }
+
+            const prog = gl.createProgram();
+            gl.attachShader(prog, vs);
+            gl.attachShader(prog, fs);
+            gl.linkProgram(prog);
+            if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+                console.error(name + ' Link:', gl.getProgramInfoLog(prog));
+            }
+            return prog;
+        }
+
+        // Create framebuffer with float texture for particle state
+        function createParticleState() {
+            const texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+
+            // Initialize with random positions and velocities
+            // RG = position (-1 to 1), BA = velocity
+            const data = new Float32Array(PARTICLE_TEX_SIZE * PARTICLE_TEX_SIZE * 4);
+            for (let i = 0; i < PARTICLE_TEX_SIZE * PARTICLE_TEX_SIZE; i++) {
+                // Spawn particles in a ring around center
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 0.3 + Math.random() * 0.7;
+                data[i * 4 + 0] = Math.cos(angle) * radius; // pos.x
+                data[i * 4 + 1] = Math.sin(angle) * radius; // pos.y
+                data[i * 4 + 2] = (Math.random() - 0.5) * 0.01; // vel.x
+                data[i * 4 + 3] = (Math.random() - 0.5) * 0.01; // vel.y
+            }
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, PARTICLE_TEX_SIZE, PARTICLE_TEX_SIZE, 0, gl.RGBA, dataType, data);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            const fb = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+            const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+            if (status !== gl.FRAMEBUFFER_COMPLETE) {
+                console.error('Framebuffer incomplete:', status);
+            }
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            return { texture, framebuffer: fb };
+        }
+
+        // Vertex shader for fullscreen quad
+        const quadVS = `#version 300 es
+            in vec2 pos;
+            out vec2 vUv;
+            void main() {
+                vUv = pos * 0.5 + 0.5;
+                gl_Position = vec4(pos, 0.0, 1.0);
+            }
+        `;
+
+        // Fragment shader for particle update (physics simulation)
+        const updateFS = `#version 300 es
+            precision highp float;
+            in vec2 vUv;
+            out vec4 fragColor;
+
+            uniform sampler2D uState;
+            uniform sampler2D uLogo;
+            uniform vec4 uLogoRect;
+            uniform float uTime;
+            uniform float uDeltaTime;
+
+            float getLogo(vec2 uv) {
+                vec2 logoUV = (uv - uLogoRect.xy) / uLogoRect.zw;
+                logoUV.y = 1.0 - logoUV.y;
+                if (logoUV.x >= 0.0 && logoUV.x <= 1.0 && logoUV.y >= 0.0 && logoUV.y <= 1.0) {
+                    return texture(uLogo, logoUV).a;
+                }
+                return 0.0;
+            }
+
+            // Dilated logo mask approximating convex hull
+            float getLogoHull(vec2 uv) {
+                float hull = 0.0;
+                float r1 = 0.025;
+                float r2 = 0.05;
+                float r3 = 0.08;
+
+                // Core samples
+                hull += getLogo(uv);
+                hull += getLogo(uv + vec2(r1, 0.0));
+                hull += getLogo(uv + vec2(-r1, 0.0));
+                hull += getLogo(uv + vec2(0.0, r1));
+                hull += getLogo(uv + vec2(0.0, -r1));
+                hull += getLogo(uv + vec2(r1 * 0.707, r1 * 0.707));
+                hull += getLogo(uv + vec2(-r1 * 0.707, r1 * 0.707));
+                hull += getLogo(uv + vec2(r1 * 0.707, -r1 * 0.707));
+                hull += getLogo(uv + vec2(-r1 * 0.707, -r1 * 0.707));
+
+                // Medium ring
+                hull += getLogo(uv + vec2(r2, 0.0)) * 0.6;
+                hull += getLogo(uv + vec2(-r2, 0.0)) * 0.6;
+                hull += getLogo(uv + vec2(0.0, r2)) * 0.6;
+                hull += getLogo(uv + vec2(0.0, -r2)) * 0.6;
+
+                // Outer ring
+                hull += getLogo(uv + vec2(r3, 0.0)) * 0.3;
+                hull += getLogo(uv + vec2(-r3, 0.0)) * 0.3;
+                hull += getLogo(uv + vec2(0.0, r3)) * 0.3;
+                hull += getLogo(uv + vec2(0.0, -r3)) * 0.3;
+
+                return clamp(hull, 0.0, 1.0);
+            }
+
+            vec2 hullForce(vec2 pos, float time) {
+                // Convert pos (-1,1) to UV (0,1)
+                vec2 uv = pos * 0.5 + 0.5;
+                float hull = getLogoHull(uv);
+
+                // Gradient toward hull (for direction)
+                float eps = 0.008;
+                float dx = getLogoHull(uv + vec2(eps, 0.0)) - getLogoHull(uv - vec2(eps, 0.0));
+                float dy = getLogoHull(uv + vec2(0.0, eps)) - getLogoHull(uv - vec2(0.0, eps));
+                vec2 toHull = normalize(vec2(dx, dy) + 0.0001);
+
+                // Distance from hull boundary (approximate)
+                float dist = 1.0 - hull;
+
+                // Pulsating waves emanating outward from hull
+                float pulseFreq = 2.5;
+                float wave1 = sin(dist * 30.0 - time * pulseFreq * 6.28) * 0.5 + 0.5;
+                float wave2 = sin(dist * 22.0 - time * pulseFreq * 6.28 * 0.7 + 1.5) * 0.5 + 0.5;
+                float wave3 = sin(dist * 40.0 - time * pulseFreq * 6.28 * 1.4 + 3.0) * 0.5 + 0.5;
+
+                float wave = (wave1 + wave2 * 0.6 + wave3 * 0.4) / 2.0;
+                wave = pow(wave, 2.0); // Sharpen peaks
+
+                // Force magnitude: stronger near hull, modulated by wave
+                float forceMag = wave * smoothstep(1.0, 0.0, dist * 1.5);
+
+                // Push outward from hull (negative of gradient toward hull)
+                return -toHull * forceMag * 0.2;
+            }
+
+            void main() {
+                vec4 state = texture(uState, vUv);
+                vec2 pos = state.rg;
+                vec2 vel = state.ba;
+
+                // Apply hull pulsating force
+                vec2 force = hullForce(pos, uTime);
+
+                // Gentle attraction to center (prevents escape)
+                vec2 toCenter = -pos;
+                float centerDist = length(pos);
+                force += toCenter * 0.002 * smoothstep(0.5, 1.2, centerDist);
+
+                // Slight curl/turbulence for organic motion
+                float noise = fract(sin(dot(vUv + uTime * 0.02, vec2(12.9898, 78.233))) * 43758.5453);
+                float angle = noise * 6.28318;
+                force += vec2(cos(angle), sin(angle)) * 0.0015;
+
+                // Update velocity with damping
+                vel += force * uDeltaTime * 60.0;
+                vel *= 0.992; // Drag
+
+                // Clamp velocity
+                float speed = length(vel);
+                if (speed > 0.08) vel = vel / speed * 0.08;
+
+                // Update position
+                pos += vel * uDeltaTime * 60.0;
+
+                // Soft boundary - wrap with fade
+                if (pos.x > 1.3) pos.x = -1.3;
+                if (pos.x < -1.3) pos.x = 1.3;
+                if (pos.y > 1.3) pos.y = -1.3;
+                if (pos.y < -1.3) pos.y = 1.3;
+
+                fragColor = vec4(pos, vel);
+            }
+        `;
+
+        // Vertex shader for particle rendering (point sprites)
+        const renderVS = `#version 300 es
+            uniform sampler2D uState;
+            uniform vec2 uResolution;
+            uniform float uTime;
+            out vec4 vColor;
+            out float vSpeed;
+
+            vec3 palette(float t) {
+                // Pink/magenta palette
+                vec3 a = vec3(0.9, 0.2, 0.5);
+                vec3 b = vec3(0.1, 0.3, 0.4);
+                vec3 c = vec3(1.0, 0.8, 1.0);
+                vec3 d = vec3(0.0, 0.1, 0.2);
+                return a + b * cos(6.28318 * (c * t + d));
+            }
+
+            void main() {
+                int id = gl_VertexID;
+                int texSize = ${PARTICLE_TEX_SIZE};
+                ivec2 coord = ivec2(id % texSize, id / texSize);
+                vec4 state = texelFetch(uState, coord, 0);
+
+                vec2 pos = state.rg;
+                vec2 vel = state.ba;
+
+                float speed = length(vel);
+                vSpeed = speed;
+
+                // Color based on speed and id
+                float colorIndex = float(id) / float(texSize * texSize) + speed * 5.0 + uTime * 0.1;
+                vColor = vec4(palette(colorIndex), 1.0);
+
+                // Aspect ratio correction
+                float aspect = uResolution.x / uResolution.y;
+                vec2 screenPos = pos * vec2(1.0 / aspect, 1.0);
+
+                gl_Position = vec4(screenPos, 0.0, 1.0);
+                gl_PointSize = 2.5 + speed * 80.0 + sin(float(id) * 0.1 + uTime * 3.0) * 0.5;
+            }
+        `;
+
+        // Fragment shader for particle rendering with glow
+        const renderFS = `#version 300 es
+            precision highp float;
+            in vec4 vColor;
+            in float vSpeed;
+            out vec4 fragColor;
+
+            void main() {
+                vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+                float r2 = dot(cxy, cxy);
+                if (r2 > 1.0) discard;
+
+                // Soft circular falloff with glow
+                float alpha = 1.0 - sqrt(r2);
+                alpha = pow(alpha, 0.7); // Softer falloff
+                alpha *= 0.4 + vSpeed * 8.0;
+
+                // Core brightness
+                vec3 col = vColor.rgb;
+                col += vec3(1.0, 0.6, 0.9) * (1.0 - r2) * 0.5; // Hot center
+
+                fragColor = vec4(col, alpha);
+            }
+        `;
+
+        // Background shader
+        const bgFS = `#version 300 es
+            precision highp float;
+            in vec2 vUv;
+            out vec4 fragColor;
+
+            uniform sampler2D uLogo;
+            uniform vec4 uLogoRect;
+            uniform float uTime;
+            uniform vec2 uResolution;
+
+            float getLogo(vec2 uv) {
+                vec2 logoUV = (uv - uLogoRect.xy) / uLogoRect.zw;
+                logoUV.y = 1.0 - logoUV.y;
+                if (logoUV.x >= 0.0 && logoUV.x <= 1.0 && logoUV.y >= 0.0 && logoUV.y <= 1.0) {
+                    return texture(uLogo, logoUV).a;
+                }
+                return 0.0;
+            }
+
+            float getLogoHull(vec2 uv) {
+                float hull = 0.0;
+                float r1 = 0.025;
+                float r2 = 0.05;
+                hull += getLogo(uv);
+                hull += getLogo(uv + vec2(r1, 0.0));
+                hull += getLogo(uv + vec2(-r1, 0.0));
+                hull += getLogo(uv + vec2(0.0, r1));
+                hull += getLogo(uv + vec2(0.0, -r1));
+                hull += getLogo(uv + vec2(r2, 0.0)) * 0.5;
+                hull += getLogo(uv + vec2(-r2, 0.0)) * 0.5;
+                hull += getLogo(uv + vec2(0.0, r2)) * 0.5;
+                hull += getLogo(uv + vec2(0.0, -r2)) * 0.5;
+                return clamp(hull, 0.0, 1.0);
+            }
+
+            void main() {
+                vec2 p = (gl_FragCoord.xy - 0.5 * uResolution) / uResolution.y;
+
+                // Deep dark background with subtle gradient
+                vec3 col = vec3(0.015, 0.0, 0.02);
+                col += vec3(0.02, 0.0, 0.03) * (1.0 - length(p) * 0.5);
+
+                float hull = getLogoHull(vUv);
+
+                // Pulsating waves radiating from hull
+                float dist = 1.0 - hull;
+                float wave1 = sin(dist * 30.0 - uTime * 15.7) * 0.5 + 0.5;
+                float wave2 = sin(dist * 22.0 - uTime * 11.0 + 1.5) * 0.5 + 0.5;
+                float wave = (wave1 + wave2 * 0.5) / 1.5;
+                wave *= smoothstep(0.8, 0.0, dist);
+                wave *= smoothstep(0.0, 0.15, hull);
+                col += vec3(0.6, 0.1, 0.35) * wave * 0.25;
+
+                // Darken area behind logo
+                float darken = smoothstep(0.0, 0.25, hull) * 0.85;
+                col *= 1.0 - darken;
+
+                // Soft logo glow
+                float glow = 0.0;
+                float gr = 0.018;
+                glow += getLogo(vUv + vec2(gr, 0.0));
+                glow += getLogo(vUv - vec2(gr, 0.0));
+                glow += getLogo(vUv + vec2(0.0, gr));
+                glow += getLogo(vUv - vec2(0.0, gr));
+                glow += getLogo(vUv + vec2(gr * 0.707, gr * 0.707)) * 0.7;
+                glow += getLogo(vUv - vec2(gr * 0.707, gr * 0.707)) * 0.7;
+                glow *= 0.2;
+
+                float pulse = 0.6 + 0.4 * sin(uTime * 2.0);
+                col += vec3(1.0, 0.35, 0.65) * glow * 0.4 * pulse;
+
+                // Vignette
+                col *= 1.0 - smoothstep(0.35, 1.15, length(p));
+
+                // Slight bloom
+                col += col * col * 0.15;
+
+                fragColor = vec4(col, 1.0);
+            }
+        `;
+
+        // Initialize
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Create programs
+        updateProgram = createProgram(quadVS, updateFS, 'Update');
+        renderProgram = createProgram(renderVS, renderFS, 'Render');
+        bgProgram = createProgram(quadVS, bgFS, 'Background');
+
+        // Create particle state textures (ping-pong buffers)
+        particleStateA = createParticleState();
+        particleStateB = createParticleState();
+
+        // Create quad VAO
+        quadVAO = gl.createVertexArray();
+        gl.bindVertexArray(quadVAO);
+        const quadBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+        const posAttrUpdate = gl.getAttribLocation(updateProgram, 'pos');
+        gl.enableVertexAttribArray(posAttrUpdate);
+        gl.vertexAttribPointer(posAttrUpdate, 2, gl.FLOAT, false, 0, 0);
+
+        // Empty VAO for particle rendering (uses gl_VertexID)
+        particleVAO = gl.createVertexArray();
+
+        // Uniform locations
+        const updateUniforms = {
+            uState: gl.getUniformLocation(updateProgram, 'uState'),
+            uLogo: gl.getUniformLocation(updateProgram, 'uLogo'),
+            uLogoRect: gl.getUniformLocation(updateProgram, 'uLogoRect'),
+            uTime: gl.getUniformLocation(updateProgram, 'uTime'),
+            uDeltaTime: gl.getUniformLocation(updateProgram, 'uDeltaTime'),
+        };
+
+        const renderUniforms = {
+            uState: gl.getUniformLocation(renderProgram, 'uState'),
+            uResolution: gl.getUniformLocation(renderProgram, 'uResolution'),
+            uTime: gl.getUniformLocation(renderProgram, 'uTime'),
+        };
+
+        const bgUniforms = {
+            uLogo: gl.getUniformLocation(bgProgram, 'uLogo'),
+            uLogoRect: gl.getUniformLocation(bgProgram, 'uLogoRect'),
+            uTime: gl.getUniformLocation(bgProgram, 'uTime'),
+            uResolution: gl.getUniformLocation(bgProgram, 'uResolution'),
+        };
+
+        let lastTime = 0;
+        let initialized = false;
+
+        function render(time) {
+            time *= 0.001;
+            const dt = Math.min(time - lastTime, 0.05);
+            lastTime = time;
+
+            if (!logoTexture) {
+                requestAnimationFrame(render);
+                return;
+            }
+
+            const readState = currentState === 0 ? particleStateA : particleStateB;
+            const writeState = currentState === 0 ? particleStateB : particleStateA;
+
+            // === UPDATE PASS (physics simulation) ===
+            gl.bindFramebuffer(gl.FRAMEBUFFER, writeState.framebuffer);
+            gl.viewport(0, 0, PARTICLE_TEX_SIZE, PARTICLE_TEX_SIZE);
+            gl.useProgram(updateProgram);
+
+            gl.bindVertexArray(quadVAO);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, readState.texture);
+            gl.uniform1i(updateUniforms.uState, 0);
+
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, logoTexture);
+            gl.uniform1i(updateUniforms.uLogo, 1);
+
+            gl.uniform4f(updateUniforms.uLogoRect, logoRect.x, logoRect.y, logoRect.w, logoRect.h);
+            gl.uniform1f(updateUniforms.uTime, time);
+            gl.uniform1f(updateUniforms.uDeltaTime, dt);
+
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            // === RENDER PASS ===
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            // Draw background first
+            gl.useProgram(bgProgram);
+            gl.bindVertexArray(quadVAO);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, logoTexture);
+            gl.uniform1i(bgUniforms.uLogo, 0);
+            gl.uniform4f(bgUniforms.uLogoRect, logoRect.x, logoRect.y, logoRect.w, logoRect.h);
+            gl.uniform1f(bgUniforms.uTime, time);
+            gl.uniform2f(bgUniforms.uResolution, canvas.width, canvas.height);
+
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            // Draw particles with additive blending
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+            gl.useProgram(renderProgram);
+            gl.bindVertexArray(particleVAO);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, writeState.texture);
+            gl.uniform1i(renderUniforms.uState, 0);
+            gl.uniform2f(renderUniforms.uResolution, canvas.width, canvas.height);
+            gl.uniform1f(renderUniforms.uTime, time);
+
+            gl.drawArrays(gl.POINTS, 0, TOTAL_PARTICLES);
+
+            gl.disable(gl.BLEND);
+
+            // Swap buffers
+            currentState = 1 - currentState;
+            requestAnimationFrame(render);
+        }
+
+        // Start after logo texture is ready
+        setTimeout(() => {
+            updateLogoTexture();
+            setTimeout(() => render(0), 200);
+        }, 100);
+    </script>
+</body>
+</html>
