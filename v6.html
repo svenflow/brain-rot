@@ -390,8 +390,8 @@ void main() {
 
     float wave = (wave1 + wave2 * 0.6) / 1.6;
 
-    // Stronger force near center, but extends to entire field
-    float forceFalloff = 1.0 - smoothstep(0.0, 1.2, distFromCenter);
+    // Gradual falloff - no hard edges
+    float forceFalloff = exp(-distFromCenter * 0.8);
 
     // Direction: outward from center
     vec2 outward = normalize(p + 0.001);
@@ -454,8 +454,8 @@ void main() {
     float rings = (ringPow1 + ringPow2 * 0.5) / 1.5;
     rings = pow(rings, 1.3); // Gentler sharpening
 
-    // Visible across entire field, only fade at edges
-    float ringMask = smoothstep(1.2, 0.1, distFromCenter2);
+    // Gradual ring fade - no hard edges
+    float ringMask = exp(-distFromCenter2 * 0.6);
     col += vec3(1.0, 0.35, 0.65) * rings * ringMask * 0.4;
 
     // Darken background behind logo hull for better SVG visibility
@@ -471,7 +471,8 @@ void main() {
     col += vec3(1.0, 0.5, 0.85) * softLogo * 0.16 * (0.5 + 0.5 * sin(t * 2.0));
     col = mix(col, col * 1.2 + vec3(0.18, 0.04, 0.14), logoGlow * 0.45);
 
-    col *= 1.0 - smoothstep(0.1, 1.3, length(p));
+    // Soft vignette - exponential falloff, no edge
+    col *= exp(-length(p) * length(p) * 0.5);
     col += col * col * 0.3;
     gl_FragColor = vec4(col, 1.0);
 }
