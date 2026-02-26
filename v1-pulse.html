@@ -213,7 +213,7 @@ void main() {
     float p1 = sin(d*15.0 - t*2.0)*0.5+0.5;
     float p2 = sin(d*10.0 - t*1.5)*0.5+0.5;
     float fade = 1.0 - smoothstep(0.0, 0.7, d);
-    float pulse = (p1*0.6 + p2*0.4) * fade * 0.4;
+    float pulse = (p1*0.6 + p2*0.4) * fade * 0.6;
     vec3 col = mix(vec3(0.08,0.0,0.05), vec3(0.6,0.1,0.4), pulse);
     col *= 1.0 - smoothstep(0.2, 0.9, d);
     gl_FragColor = vec4(col, 1.0);
