@@ -396,7 +396,7 @@ void main() {
     smoke = smoothstep(0.2, 0.9, smoke);
 
     vec3 col = palette(smoke + time * 0.05);
-    col *= 0.3 + smoke * 0.9;
+    col *= 0.15 + smoke * 0.7; // Darker overall, more black bg
 
     // Hot spots
     float hot = pow(smoke, 3.0);
