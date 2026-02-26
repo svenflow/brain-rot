@@ -257,6 +257,27 @@
                 return 0.0;
             }
 
+            // Soft glow sampling around logo for bloom effect
+            float getLogoGlow(vec2 uv, float radius) {
+                float glow = 0.0;
+                float samples = 0.0;
+                // Sample in a circle around the point
+                glow += getLogo(uv + vec2(radius, 0.0)); samples += 1.0;
+                glow += getLogo(uv + vec2(-radius, 0.0)); samples += 1.0;
+                glow += getLogo(uv + vec2(0.0, radius)); samples += 1.0;
+                glow += getLogo(uv + vec2(0.0, -radius)); samples += 1.0;
+                glow += getLogo(uv + vec2(radius*0.707, radius*0.707)); samples += 1.0;
+                glow += getLogo(uv + vec2(-radius*0.707, radius*0.707)); samples += 1.0;
+                glow += getLogo(uv + vec2(radius*0.707, -radius*0.707)); samples += 1.0;
+                glow += getLogo(uv + vec2(-radius*0.707, -radius*0.707)); samples += 1.0;
+                // Second ring
+                float r2 = radius * 2.0;
+                glow += getLogo(uv + vec2(r2, 0.0)) * 0.5; samples += 0.5;
+                glow += getLogo(uv + vec2(-r2, 0.0)) * 0.5; samples += 0.5;
+                glow += getLogo(uv + vec2(0.0, r2)) * 0.5; samples += 0.5;
+                glow += getLogo(uv + vec2(0.0, -r2)) * 0.5; samples += 0.5;
+                return glow / samples;
+            }
 
 // Turing/reaction-diffusion inspired organic patterns
 vec3 palette(float d) {
@@ -335,8 +356,15 @@ void main() {
     float pulse = sin(pattern * 10.0 + time * 3.0) * 0.5 + 0.5;
     col += vec3(1.0, 0.2, 0.6) * pulse * 0.1 * pattern;
 
-    col += palette(pattern + 0.3) * inLogo * 0.7 * (0.6 + 0.4 * sin(t * 2.0));
-    col *= 1.0 + inLogo * 0.3;
+    // Soft logo glow integration
+    float logoGlow = getLogoGlow(uv, 0.014);
+    float softLogo = smoothstep(0.0, 0.75, inLogo);
+    
+    // Organic glow blending
+    col += palette(pattern + 0.3) * logoGlow * 0.4;
+    col += vec3(1.0, 0.45, 0.8) * softLogo * 0.28 * (0.6 + 0.4 * sin(t * 2.0));
+    col = mix(col, col + vec3(0.25, 0.08, 0.2), logoGlow * 0.4);
+
     col *= 1.0 - smoothstep(0.15, 1.2, length(p));
     col += col * col * 0.25;
     gl_FragColor = vec4(col, 1.0);

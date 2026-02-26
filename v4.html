@@ -257,6 +257,27 @@
                 return 0.0;
             }
 
+            // Soft glow sampling around logo for bloom effect
+            float getLogoGlow(vec2 uv, float radius) {
+                float glow = 0.0;
+                float samples = 0.0;
+                // Sample in a circle around the point
+                glow += getLogo(uv + vec2(radius, 0.0)); samples += 1.0;
+                glow += getLogo(uv + vec2(-radius, 0.0)); samples += 1.0;
+                glow += getLogo(uv + vec2(0.0, radius)); samples += 1.0;
+                glow += getLogo(uv + vec2(0.0, -radius)); samples += 1.0;
+                glow += getLogo(uv + vec2(radius*0.707, radius*0.707)); samples += 1.0;
+                glow += getLogo(uv + vec2(-radius*0.707, radius*0.707)); samples += 1.0;
+                glow += getLogo(uv + vec2(radius*0.707, -radius*0.707)); samples += 1.0;
+                glow += getLogo(uv + vec2(-radius*0.707, -radius*0.707)); samples += 1.0;
+                // Second ring
+                float r2 = radius * 2.0;
+                glow += getLogo(uv + vec2(r2, 0.0)) * 0.5; samples += 0.5;
+                glow += getLogo(uv + vec2(-r2, 0.0)) * 0.5; samples += 0.5;
+                glow += getLogo(uv + vec2(0.0, r2)) * 0.5; samples += 0.5;
+                glow += getLogo(uv + vec2(0.0, -r2)) * 0.5; samples += 0.5;
+                return glow / samples;
+            }
 
 // Neural network synapse visualization
 #define PI 3.14159265359
@@ -331,8 +352,15 @@ void main() {
     burst = max(0.0, burst) * smoothstep(0.8, 0.0, length(p));
     col += vec3(1.0, 0.5, 0.9) * burst * 0.3;
 
-    col += palette(0.5) * inLogo * 0.8 * (0.5 + 0.5 * sin(t * 2.5));
-    col *= 1.0 + inLogo * 0.4;
+    // Soft logo glow integration
+    float logoGlow = getLogoGlow(uv, 0.015);
+    float softLogo = smoothstep(0.0, 0.8, inLogo);
+    
+    // Neural energy emanating from logo
+    col += palette(0.5) * logoGlow * 0.45;
+    col += vec3(1.0, 0.5, 0.9) * softLogo * 0.3 * (0.5 + 0.5 * sin(t * 2.5));
+    col = mix(col, col * 1.25 + vec3(0.15, 0.03, 0.12), logoGlow * 0.35);
+
     col *= 1.0 - smoothstep(0.2, 1.2, length(p));
     col += col * col * 0.3;
     gl_FragColor = vec4(col, 1.0);
