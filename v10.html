@@ -279,6 +279,44 @@
                 return glow / samples;
             }
 
+            // Get dilated logo mask for background darkening (approximates convex hull)
+            float getLogoHull(vec2 uv) {
+                float hull = 0.0;
+                // Sample in expanding rings to create soft hull
+                float r1 = 0.02;
+                float r2 = 0.04;
+                float r3 = 0.06;
+                
+                // Inner ring
+                hull += getLogo(uv);
+                hull += getLogo(uv + vec2(r1, 0.0));
+                hull += getLogo(uv + vec2(-r1, 0.0));
+                hull += getLogo(uv + vec2(0.0, r1));
+                hull += getLogo(uv + vec2(0.0, -r1));
+                hull += getLogo(uv + vec2(r1*0.707, r1*0.707));
+                hull += getLogo(uv + vec2(-r1*0.707, r1*0.707));
+                hull += getLogo(uv + vec2(r1*0.707, -r1*0.707));
+                hull += getLogo(uv + vec2(-r1*0.707, -r1*0.707));
+                
+                // Middle ring
+                hull += getLogo(uv + vec2(r2, 0.0)) * 0.7;
+                hull += getLogo(uv + vec2(-r2, 0.0)) * 0.7;
+                hull += getLogo(uv + vec2(0.0, r2)) * 0.7;
+                hull += getLogo(uv + vec2(0.0, -r2)) * 0.7;
+                hull += getLogo(uv + vec2(r2*0.707, r2*0.707)) * 0.7;
+                hull += getLogo(uv + vec2(-r2*0.707, r2*0.707)) * 0.7;
+                hull += getLogo(uv + vec2(r2*0.707, -r2*0.707)) * 0.7;
+                hull += getLogo(uv + vec2(-r2*0.707, -r2*0.707)) * 0.7;
+                
+                // Outer ring  
+                hull += getLogo(uv + vec2(r3, 0.0)) * 0.4;
+                hull += getLogo(uv + vec2(-r3, 0.0)) * 0.4;
+                hull += getLogo(uv + vec2(0.0, r3)) * 0.4;
+                hull += getLogo(uv + vec2(0.0, -r3)) * 0.4;
+                
+                return clamp(hull, 0.0, 1.0);
+            }
+
 // Particle system with flowing trails
 vec3 palette(float d) {
     return vec3(0.95, 0.25, 0.65) + vec3(0.05, 0.25, 0.35) * cos(6.28 * (d + vec3(0.0, 0.1, 0.2)));
@@ -366,6 +404,12 @@ void main() {
     glow *= 0.5 + 0.5 * sin(time * 2.0);
     col += vec3(0.8, 0.2, 0.5) * glow * 0.3;
 
+
+    // Darken background behind logo hull for better SVG visibility
+    float logoHull = getLogoHull(uv);
+    float darkenAmount = smoothstep(0.0, 0.5, logoHull) * 0.6;
+    col *= 1.0 - darkenAmount;
+    
     // Soft logo glow integration
     float logoGlow = getLogoGlow(uv, 0.014);
     float softLogo = smoothstep(0.0, 0.75, inLogo);
