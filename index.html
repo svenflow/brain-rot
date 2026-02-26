@@ -93,6 +93,22 @@
             .card-number { font-size: 2.5em; }
         }
     </style>
+    <script>
+        // Generate random UUID for cache busting
+        function uuid() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+        }
+        // Add cache bust param to all card links on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const cacheBust = uuid();
+            document.querySelectorAll('.card').forEach(function(card) {
+                card.href = card.href + '?v=' + cacheBust;
+            });
+        });
+    </script>
 </head>
 <body>
     <h1>🧠 Brain Rot</h1>
