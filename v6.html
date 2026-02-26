@@ -477,8 +477,10 @@ void main() {
     // Tap ripples - energy bursts from touch points
     for (int i = 0; i < 5; i++) {
         if (ripples[i].z > 0.0) {
-            vec2 ripplePos = ripples[i].xy * 2.0 - 1.0; // Convert from 0-1 to -1 to 1
-            ripplePos.x *= r.x / r.y; // Correct aspect ratio
+            // Convert from 0-1 screen coords to same space as p
+            // p = (gl_FragCoord.xy - 0.5 * r) / r.y
+            // So ripple needs: ((uv * r) - 0.5 * r) / r.y = (uv - 0.5) * r / r.y
+            vec2 ripplePos = (ripples[i].xy - 0.5) * vec2(r.x / r.y, 1.0);
             float rippleAge = t - ripples[i].z;
 
             if (rippleAge < 3.0) { // Ripple lasts 3 seconds
