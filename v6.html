@@ -238,7 +238,7 @@
         }
         resize(); window.onresize = resize;
         const vs = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vs, 'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}');
+        gl.shaderSource(vs, 'attribute vec2 pos;void main(){gl_Position=vec4(pos,0,1);}');
         gl.compileShader(vs);
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
@@ -261,8 +261,8 @@ vec2 hash2(vec2 p) {
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
     float inLogo = getLogo(uv);
-    vec2 p = uv * 8.0;
-    vec2 n = floor(p); vec2 f = fract(p);
+    vec2 pt = uv * 8.0;
+    vec2 n = floor(pt); vec2 f = fract(pt);
     float minDist = 8.0;
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
@@ -286,7 +286,7 @@ void main() {
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const p = gl.getAttribLocation(prog, 'p');
+        const p = gl.getAttribLocation(prog, 'pos');
         gl.enableVertexAttribArray(p);
         gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
