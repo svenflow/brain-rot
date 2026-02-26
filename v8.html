@@ -265,7 +265,7 @@ void main() {
     
     vec3 col = vec3(0.04, 0.0, 0.02);
     col += vec3(0.5, 0.08, 0.3) * pulse * 0.5;
-    col += vec3(0.3, 0.05, 0.2) * inLogo * (0.7 + 0.3 * beat);
+    col += vec3(0.5, 0.1, 0.35) * inLogo * (0.7 + 0.3 * beat);
     
     gl_FragColor = vec4(col, 1.0);
 }

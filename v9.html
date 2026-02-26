@@ -270,8 +270,8 @@ void main() {
     }
     
     vec3 col = vec3(0.03, 0.0, 0.02);
-    col += vec3(0.8, 0.2, 0.6) * bolt * 0.4;
-    col += vec3(0.4, 0.1, 0.3) * inLogo * (0.5 + 0.5 * sin(t * 5.0));
+    col += vec3(0.95, 0.3, 0.75) * bolt * 0.4;
+    col += vec3(0.6, 0.15, 0.45) * inLogo * (0.5 + 0.5 * sin(t * 5.0));
     col *= 1.0 - smoothstep(0.3, 0.95, length(uv - 0.5));
     
     gl_FragColor = vec4(col, 1.0);
