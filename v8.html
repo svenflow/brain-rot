@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Heartbeat</title>
+    <title>Brain Rot - Morphing Blobs</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -204,28 +204,19 @@
         const svgCtx = svgCanvas.getContext('2d');
         let logoTexture = null;
         let logoRect = { x: 0, y: 0, w: 1, h: 1 };
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            updateLogoTexture();
-        }
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; gl.viewport(0, 0, canvas.width, canvas.height); updateLogoTexture(); }
         function updateLogoTexture() {
             const logo = document.querySelector('.logo svg');
             const rect = logo.getBoundingClientRect();
-            logoRect.x = rect.left / window.innerWidth;
-            logoRect.y = 1.0 - (rect.bottom / window.innerHeight);
-            logoRect.w = rect.width / window.innerWidth;
-            logoRect.h = rect.height / window.innerHeight;
+            logoRect.x = rect.left / window.innerWidth; logoRect.y = 1.0 - (rect.bottom / window.innerHeight);
+            logoRect.w = rect.width / window.innerWidth; logoRect.h = rect.height / window.innerHeight;
             svgCanvas.width = 512; svgCanvas.height = 512;
             const img = new Image();
             const svgData = new XMLSerializer().serializeToString(logo);
             const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
             const url = URL.createObjectURL(svgBlob);
             img.onload = function() {
-                svgCtx.clearRect(0, 0, 512, 512);
-                svgCtx.drawImage(img, 0, 0, 512, 512);
-                URL.revokeObjectURL(url);
+                svgCtx.clearRect(0, 0, 512, 512); svgCtx.drawImage(img, 0, 0, 512, 512); URL.revokeObjectURL(url);
                 if (!logoTexture) logoTexture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, logoTexture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, svgCanvas);
@@ -233,8 +224,7 @@
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            };
-            img.src = url;
+            }; img.src = url;
         }
         resize(); window.onresize = resize;
         const vs = gl.createShader(gl.VERTEX_SHADER);
@@ -242,59 +232,59 @@
         gl.compileShader(vs);
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
-            precision mediump float;
+            precision highp float;
             uniform vec2 r; uniform float t;
             uniform sampler2D logo; uniform vec4 logoRect;
             float getLogo(vec2 uv) {
-                vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
-                logoUV.y = 1.0 - logoUV.y;
-                if (logoUV.x >= 0.0 && logoUV.x <= 1.0 && logoUV.y >= 0.0 && logoUV.y <= 1.0) {
-                    return texture2D(logo, logoUV).a;
-                }
+                vec2 logoUV = (uv - logoRect.xy) / logoRect.zw; logoUV.y = 1.0 - logoUV.y;
+                if (logoUV.x >= 0.0 && logoUV.x <= 1.0 && logoUV.y >= 0.0 && logoUV.y <= 1.0) return texture2D(logo, logoUV).a;
                 return 0.0;
             }
             
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
     float inLogo = getLogo(uv);
-    float d = length(uv - 0.5);
     
-    // Heartbeat rhythm
-    float beat = pow(sin(t * 4.0) * 0.5 + 0.5, 4.0);
-    float pulse = smoothstep(0.6, 0.0, d - beat * 0.3);
+    // Multiple metaballs
+    float blobs = 0.0;
+    vec2 b1 = vec2(0.3 + 0.2*sin(t*0.7), 0.5 + 0.2*cos(t*0.5));
+    vec2 b2 = vec2(0.7 + 0.15*cos(t*0.8), 0.4 + 0.2*sin(t*0.6));
+    vec2 b3 = vec2(0.5 + 0.25*sin(t*0.4), 0.7 + 0.15*cos(t*0.9));
+    vec2 b4 = vec2(0.4 + 0.2*cos(t*0.5), 0.3 + 0.2*sin(t*0.7));
     
-    vec3 col = vec3(0.04, 0.0, 0.02);
-    col += vec3(0.5, 0.08, 0.3) * pulse * 0.7;
-    col += vec3(0.3, 0.05, 0.2) * inLogo * (0.7 + 0.3 * beat);
+    blobs += 0.08 / (0.001 + length(uv - b1));
+    blobs += 0.06 / (0.001 + length(uv - b2));
+    blobs += 0.07 / (0.001 + length(uv - b3));
+    blobs += 0.05 / (0.001 + length(uv - b4));
+    
+    // Threshold for blob edges
+    float edge = smoothstep(0.95, 1.05, blobs);
+    float glow = smoothstep(0.5, 1.0, blobs) * 0.3;
+    
+    vec3 col = vec3(0.03, 0.0, 0.02);
+    col += vec3(0.9, 0.2, 0.6) * edge;
+    col += vec3(0.5, 0.1, 0.35) * glow;
+    col += vec3(0.4, 0.1, 0.3) * inLogo * (0.6 + 0.4*edge);
+    col *= 1.0 - smoothstep(0.3, 0.95, length(uv - 0.5));
     
     gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
         const prog = gl.createProgram();
-        gl.attachShader(prog, vs); gl.attachShader(prog, fs);
-        gl.linkProgram(prog); gl.useProgram(prog);
-        const buf = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog); gl.useProgram(prog);
+        const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const p = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(p);
-        gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
-        const rLoc = gl.getUniformLocation(prog, 'r');
-        const tLoc = gl.getUniformLocation(prog, 't');
-        const logoLoc = gl.getUniformLocation(prog, 'logo');
-        const logoRectLoc = gl.getUniformLocation(prog, 'logoRect');
+        const pp = gl.getAttribLocation(prog, 'pos'); gl.enableVertexAttribArray(pp); gl.vertexAttribPointer(pp, 2, gl.FLOAT, false, 0, 0);
+        const rLoc = gl.getUniformLocation(prog, 'r'); const tLoc = gl.getUniformLocation(prog, 't');
+        const logoLoc = gl.getUniformLocation(prog, 'logo'); const logoRectLoc = gl.getUniformLocation(prog, 'logoRect');
         function render(time) {
-            gl.uniform2f(rLoc, canvas.width, canvas.height);
-            gl.uniform1f(tLoc, time * 0.001);
+            gl.uniform2f(rLoc, canvas.width, canvas.height); gl.uniform1f(tLoc, time * 0.001);
             gl.uniform4f(logoRectLoc, logoRect.x, logoRect.y, logoRect.w, logoRect.h);
-            if (logoTexture) {
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, logoTexture);
-                gl.uniform1i(logoLoc, 0);
-            }
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            requestAnimationFrame(render);
+            if (logoTexture) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, logoTexture); gl.uniform1i(logoLoc, 0); }
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(render);
         }
         setTimeout(() => { updateLogoTexture(); render(0); }, 100);
     </script>

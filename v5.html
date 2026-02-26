@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Noise</title>
+    <title>Brain Rot - Kaleidoscope</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -242,7 +242,7 @@
         gl.compileShader(vs);
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
-            precision mediump float;
+            precision highp float;
             uniform vec2 r; uniform float t;
             uniform sampler2D logo; uniform vec4 logoRect;
             float getLogo(vec2 uv) {
@@ -258,17 +258,34 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 float noise(vec2 p) {
     vec2 i = floor(p); vec2 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+    return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
 }
+
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
     float inLogo = getLogo(uv);
-    float n = noise(uv * 4.0 + t * 0.3) * 0.7;
-    n += noise(uv * 8.0 - t * 0.2) * 0.25;
-    n += noise(uv * 16.0 + t * 0.15) * 0.125;
-    n += inLogo * noise(uv * 20.0 + t) * 0.3;
-    vec3 col = vec3(0.3, 0.05, 0.2) * n * 0.7;
-    col *= 1.0 - smoothstep(0.2, 0.9, length(uv - 0.5));
+    
+    vec2 c = uv - 0.5;
+    float angle = atan(c.y, c.x);
+    float dist = length(c);
+    
+    // Kaleidoscope folding
+    float segments = 8.0;
+    angle = mod(angle, 3.14159 * 2.0 / segments);
+    angle = abs(angle - 3.14159 / segments);
+    
+    vec2 kp = vec2(cos(angle), sin(angle)) * dist;
+    
+    // Animated pattern
+    float pattern = noise(kp * 10.0 + t * 0.5);
+    pattern += 0.5 * noise(kp * 20.0 - t * 0.3);
+    pattern += 0.25 * noise(kp * 40.0 + t * 0.2);
+    
+    vec3 col = vec3(0.8, 0.15, 0.5) * pattern;
+    col = mix(col, vec3(0.4, 0.05, 0.25), smoothstep(0.2, 0.5, dist));
+    col += vec3(0.3, 0.1, 0.2) * inLogo;
+    col *= 1.0 - smoothstep(0.35, 0.55, dist);
+    
     gl_FragColor = vec4(col, 1.0);
 }
         `);
@@ -279,9 +296,9 @@ void main() {
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const p = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(p);
-        gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+        const pp = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(pp);
+        gl.vertexAttribPointer(pp, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');
