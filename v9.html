@@ -263,10 +263,10 @@ void main() {
     // Electric bolts
     float bolt = 0.0;
     for (float i = 0.0; i < 5.0; i++) {
-        vec2 p = uv * (3.0 + i);
-        p.y += t * (1.0 + i * 0.5);
-        float h = hash(floor(p));
-        bolt += step(0.97, h) * (1.0 - fract(p.y));
+        vec2 pt = uv * (3.0 + i);
+        pt.y += t * (1.0 + i * 0.5);
+        float h = hash(floor(pt));
+        bolt += step(0.97, h) * (1.0 - fract(pt.y));
     }
     
     vec3 col = vec3(0.03, 0.0, 0.02);
