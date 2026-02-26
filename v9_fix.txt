@@ -1,0 +1,21 @@
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / r;
+    float inLogo = getLogo(uv);
+    
+    // Electric bolts - unrolled loop for iOS
+    float bolt = 0.0;
+    vec2 pt0 = uv * 3.0; pt0.y += t * 1.0; bolt += step(0.97, hash(floor(pt0))) * (1.0 - fract(pt0.y));
+    vec2 pt1 = uv * 4.0; pt1.y += t * 1.5; bolt += step(0.97, hash(floor(pt1))) * (1.0 - fract(pt1.y));
+    vec2 pt2 = uv * 5.0; pt2.y += t * 2.0; bolt += step(0.97, hash(floor(pt2))) * (1.0 - fract(pt2.y));
+    vec2 pt3 = uv * 6.0; pt3.y += t * 2.5; bolt += step(0.97, hash(floor(pt3))) * (1.0 - fract(pt3.y));
+    vec2 pt4 = uv * 7.0; pt4.y += t * 3.0; bolt += step(0.97, hash(floor(pt4))) * (1.0 - fract(pt4.y));
+    
+    vec3 col = vec3(0.03, 0.0, 0.02);
+    col += vec3(0.8, 0.2, 0.6) * bolt * 0.6;
+    col += vec3(0.55, 0.15, 0.4) * inLogo * (0.5 + 0.5 * sin(t * 5.0));
+    col *= 1.0 - smoothstep(0.3, 0.95, length(uv - 0.5));
+    
+    gl_FragColor = vec4(col, 1.0);
+}
