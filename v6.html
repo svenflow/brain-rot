@@ -247,6 +247,7 @@
             uniform float t;
             uniform sampler2D logo;
             uniform vec4 logoRect;
+            uniform vec3 ripples[5]; // xy = position (normalized), z = start time
 
             float getLogo(vec2 uv) {
                 vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
@@ -473,6 +474,38 @@ void main() {
     col += vec3(1.0, 0.5, 0.85) * softLogo * 0.16 * (0.5 + 0.5 * sin(t * 2.0));
     col = mix(col, col * 1.2 + vec3(0.18, 0.04, 0.14), logoGlow * 0.45);
 
+    // Tap ripples - energy bursts from touch points
+    for (int i = 0; i < 5; i++) {
+        if (ripples[i].z > 0.0) {
+            vec2 ripplePos = ripples[i].xy * 2.0 - 1.0; // Convert from 0-1 to -1 to 1
+            ripplePos.x *= r.x / r.y; // Correct aspect ratio
+            float rippleAge = t - ripples[i].z;
+
+            if (rippleAge < 3.0) { // Ripple lasts 3 seconds
+                float dist = length(p - ripplePos);
+
+                // Expanding ring
+                float ringRadius = rippleAge * 0.8; // Expand speed
+                float ringDist = abs(dist - ringRadius);
+
+                // Sharp leading edge, soft trailing
+                float ring = exp(-ringDist * 15.0) * exp(-rippleAge * 1.2);
+
+                // Secondary inner ring for more energy feel
+                float ringRadius2 = rippleAge * 0.6;
+                float ring2 = exp(-abs(dist - ringRadius2) * 12.0) * exp(-rippleAge * 1.5);
+
+                // Add glow
+                col += vec3(1.0, 0.4, 0.7) * ring * 0.8;
+                col += vec3(1.0, 0.2, 0.9) * ring2 * 0.5;
+
+                // Central flash on impact
+                float flash = exp(-dist * 8.0) * exp(-rippleAge * 4.0);
+                col += vec3(1.0, 0.8, 1.0) * flash * 0.6;
+            }
+        }
+    }
+
     // Soft vignette - exponential falloff, no edge
     col *= exp(-length(p) * length(p) * 0.5);
     col += col * col * 0.3;
@@ -494,10 +527,45 @@ void main() {
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');
         const logoRectLoc = gl.getUniformLocation(prog, 'logoRect');
+        const ripplesLoc = gl.getUniformLocation(prog, 'ripples');
+
+        // Ripple state: array of {x, y, startTime}
+        const ripples = Array(5).fill(null).map(() => ({x: 0, y: 0, startTime: 0}));
+        let rippleIndex = 0;
+
+        function addRipple(clientX, clientY, time) {
+            // Convert screen coords to 0-1 normalized (y flipped for GL)
+            const x = clientX / canvas.width;
+            const y = 1.0 - (clientY / canvas.height);
+            ripples[rippleIndex] = {x, y, startTime: time * 0.001};
+            rippleIndex = (rippleIndex + 1) % 5;
+        }
+
+        // Touch/click handlers
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            addRipple(e.clientX - rect.left, e.clientY - rect.top, performance.now());
+        });
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            for (const touch of e.touches) {
+                addRipple(touch.clientX - rect.left, touch.clientY - rect.top, performance.now());
+            }
+        }, {passive: false});
+
         function render(time) {
             gl.uniform2f(rLoc, canvas.width, canvas.height);
             gl.uniform1f(tLoc, time * 0.001);
             gl.uniform4f(logoRectLoc, logoRect.x, logoRect.y, logoRect.w, logoRect.h);
+
+            // Pass ripple data to shader
+            const rippleData = [];
+            for (const r of ripples) {
+                rippleData.push(r.x, r.y, r.startTime);
+            }
+            gl.uniform3fv(ripplesLoc, rippleData);
+
             if (logoTexture) {
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, logoTexture);
