@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Scanlines</title>
+    <title>Brain Rot - Neural Network</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -196,7 +196,7 @@
   <path class="cls-3" d="M585.73,429.44c15.77-2.62,20.34,9.4,26.52,20.91-3.35,4.19-4.35,5.07-8.62,8.41l-1.4.62c-2.62-1.79-8.65-18.2-10.63-22.66h-8.88c-2.11-2.15-3.42-2.75-3.95-5.32,1.63-1.63,4.51-1.64,6.96-1.97Z"/>
   <path class="cls-3" d="M127.23,350.22c2.78.79,3.31.85,4.96,3.13.65,2.48.53,2.6-.36,5.11-2.61-1.31-3.85-1.74-5.94-3.81-.44-2.63-.49-1.61,1.33-4.43Z"/>
   <path class="cls-3" d="M574.02,350.23c2.39,1.02,2.83,1.2,4.92,2.68l.15,1.5-1.98,1.98c-1.9.33-2.88.72-4.61-.08-.56-2.28.49-3.52,1.53-6.08Z"/>
-</svg>    </div>
+</svg>        </div>
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
@@ -242,9 +242,12 @@
         gl.compileShader(vs);
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
-            precision mediump float;
-            uniform vec2 r; uniform float t;
-            uniform sampler2D logo; uniform vec4 logoRect;
+            precision highp float;
+            uniform vec2 r;
+            uniform float t;
+            uniform sampler2D logo;
+            uniform vec4 logoRect;
+
             float getLogo(vec2 uv) {
                 vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
                 logoUV.y = 1.0 - logoUV.y;
@@ -253,32 +256,99 @@
                 }
                 return 0.0;
             }
-            
+
+
+// Neural network synapse visualization
+#define PI 3.14159265359
+
+vec3 palette(float d) {
+    return vec3(0.9, 0.2, 0.6) + vec3(0.1, 0.3, 0.4) * sin(d * 6.28 + vec3(0.0, 0.5, 1.0));
+}
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+
+float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
+               mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
+
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
+    vec2 p = (gl_FragCoord.xy - 0.5 * r) / r.y;
     float inLogo = getLogo(uv);
-    float scan = sin(gl_FragCoord.y * 3.0) * 0.5 + 0.5;
-    scan = pow(scan, 0.5);
-    float glitch = step(0.995, sin(t * 20.0 + uv.y * 50.0));
-    float flicker = 0.95 + 0.05 * sin(t * 15.0);
-    vec3 col = vec3(0.2, 0.03, 0.12) * scan * 0.6;
-    col += vec3(0.5, 0.1, 0.3) * glitch * 0.3;
-    col += vec3(0.25, 0.05, 0.15) * inLogo;
-    col *= flicker;
-    col *= 1.0 - pow(length(uv - 0.5) * 1.2, 2.0);
+
+    vec3 col = vec3(0.02, 0.0, 0.03);
+
+    // Neural nodes - grid of pulsing points
+    vec2 grid = fract(p * 6.0) - 0.5;
+    vec2 id = floor(p * 6.0);
+    float nodePhase = hash(id) * 6.28;
+    float pulse = sin(t * 2.0 + nodePhase) * 0.5 + 0.5;
+    float node = smoothstep(0.15, 0.05, length(grid)) * pulse;
+
+    // Connections between nodes - simulate synapses firing
+    vec2 offset1 = vec2(1.0, 0.0);
+    vec2 offset2 = vec2(0.0, 1.0);
+    vec2 offset3 = vec2(1.0, 1.0);
+    vec2 offset4 = vec2(1.0, -1.0);
+
+    // Signal traveling along connections
+    float signal = fract(t * 0.5 + hash(id) * 2.0);
+
+    // Draw connection lines with traveling signals
+    float conn = 0.0;
+    vec2 localP = grid;
+
+    // Horizontal connection
+    float h = abs(localP.y);
+    float hSig = smoothstep(0.0, 1.0, fract(localP.x + 0.5 + t * 0.8 + hash(id)));
+    conn += smoothstep(0.05, 0.01, h) * (1.0 - abs(localP.x * 2.0)) * hSig * 0.5;
+
+    // Vertical connection
+    float v = abs(localP.x);
+    float vSig = smoothstep(0.0, 1.0, fract(localP.y + 0.5 + t * 0.6 + hash(id + 100.0)));
+    conn += smoothstep(0.05, 0.01, v) * (1.0 - abs(localP.y * 2.0)) * vSig * 0.5;
+
+    // Diagonal connections
+    float d1 = abs(localP.x - localP.y) / 1.414;
+    float d1Sig = smoothstep(0.0, 1.0, fract((localP.x + localP.y) * 0.5 + 0.5 + t * 0.7));
+    conn += smoothstep(0.04, 0.01, d1) * (1.0 - length(localP) * 1.2) * d1Sig * 0.3;
+
+    // Color the network
+    col += palette(hash(id) + t * 0.1) * node * 1.5;
+    col += vec3(1.0, 0.3, 0.7) * conn * pulse;
+
+    // Background neural noise
+    float bg = noise(p * 8.0 + t * 0.3) * 0.15;
+    bg += noise(p * 16.0 - t * 0.2) * 0.08;
+    col += vec3(0.6, 0.1, 0.4) * bg;
+
+    // Synaptic bursts
+    float burst = sin(length(p - vec2(sin(t * 0.7) * 0.3, cos(t * 0.5) * 0.3)) * 15.0 - t * 5.0);
+    burst = max(0.0, burst) * smoothstep(0.8, 0.0, length(p));
+    col += vec3(1.0, 0.5, 0.9) * burst * 0.3;
+
+    col += palette(0.5) * inLogo * 0.8 * (0.5 + 0.5 * sin(t * 2.5));
+    col *= 1.0 + inLogo * 0.4;
+    col *= 1.0 - smoothstep(0.2, 1.2, length(p));
+    col += col * col * 0.3;
     gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
         const prog = gl.createProgram();
         gl.attachShader(prog, vs); gl.attachShader(prog, fs);
         gl.linkProgram(prog); gl.useProgram(prog);
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const p = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(p);
-        gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+        const posAttr = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');

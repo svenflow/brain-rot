@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Glitch Matrix</title>
+    <title>Brain Rot - Fluid Smoke</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -196,7 +196,7 @@
   <path class="cls-3" d="M585.73,429.44c15.77-2.62,20.34,9.4,26.52,20.91-3.35,4.19-4.35,5.07-8.62,8.41l-1.4.62c-2.62-1.79-8.65-18.2-10.63-22.66h-8.88c-2.11-2.15-3.42-2.75-3.95-5.32,1.63-1.63,4.51-1.64,6.96-1.97Z"/>
   <path class="cls-3" d="M127.23,350.22c2.78.79,3.31.85,4.96,3.13.65,2.48.53,2.6-.36,5.11-2.61-1.31-3.85-1.74-5.94-3.81-.44-2.63-.49-1.61,1.33-4.43Z"/>
   <path class="cls-3" d="M574.02,350.23c2.39,1.02,2.83,1.2,4.92,2.68l.15,1.5-1.98,1.98c-1.9.33-2.88.72-4.61-.08-.56-2.28.49-3.52,1.53-6.08Z"/>
-</svg>    </div>
+</svg>        </div>
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
@@ -243,8 +243,11 @@
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
             precision highp float;
-            uniform vec2 r; uniform float t;
-            uniform sampler2D logo; uniform vec4 logoRect;
+            uniform vec2 r;
+            uniform float t;
+            uniform sampler2D logo;
+            uniform vec4 logoRect;
+
             float getLogo(vec2 uv) {
                 vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
                 logoUV.y = 1.0 - logoUV.y;
@@ -253,50 +256,102 @@
                 }
                 return 0.0;
             }
-            
+
+
+// Fluid smoke simulation approximation
+vec3 palette(float d) {
+    return vec3(0.85, 0.15, 0.55) + vec3(0.15, 0.25, 0.35) * cos(6.28 * (d + vec3(0.0, 0.15, 0.3)));
+}
+
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
+               mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
+
+float fbm(vec2 p, float time) {
+    float v = 0.0, a = 0.5;
+    mat2 rot = mat2(0.877, 0.479, -0.479, 0.877);
+    v += a * noise(p + time * 0.3); p = rot * p * 2.03; a *= 0.5;
+    v += a * noise(p - time * 0.2); p = rot * p * 1.97; a *= 0.5;
+    v += a * noise(p + time * 0.4); p = rot * p * 2.01; a *= 0.5;
+    v += a * noise(p - time * 0.3); p = rot * p * 2.02; a *= 0.5;
+    v += a * noise(p + time * 0.2); p = rot * p * 1.99; a *= 0.5;
+    v += a * noise(p);
+    return v;
+}
 
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
+    vec2 p = (gl_FragCoord.xy - 0.5 * r) / r.y;
     float inLogo = getLogo(uv);
-    
-    // Digital glitch blocks
-    vec2 block = floor(uv * vec2(40.0, 20.0));
-    float glitch = step(0.97, hash(block + floor(t * 10.0)));
-    
-    // Chromatic shift based on glitch
-    float shift = glitch * 0.03;
-    float r_ch = getLogo(uv + vec2(shift, 0.0));
-    float b_ch = getLogo(uv - vec2(shift, 0.0));
-    
-    // Scan lines
-    float scan = 0.8 + 0.2 * sin(gl_FragCoord.y * 4.0);
-    
-    // Falling characters effect
-    vec2 charGrid = floor(uv * vec2(30.0, 50.0));
-    float fall = fract(hash(charGrid.xx) - t * (0.5 + hash(charGrid.xx) * 0.5));
-    float chars = step(0.8, hash(charGrid + floor(t * 5.0))) * fall;
-    
-    vec3 col = vec3(0.02, 0.0, 0.01);
-    col += vec3(0.9, 0.2, 0.6) * chars * 0.4;
-    col += vec3(r_ch * 0.8, inLogo * 0.2, b_ch * 0.8) * 0.5;
-    col += vec3(0.6, 0.1, 0.4) * glitch * 0.3;
-    col *= scan;
-    col *= 1.0 - smoothstep(0.3, 0.95, length(uv - 0.5));
-    
+    float time = t * 0.4;
+
+    // Curl noise approximation for fluid motion
+    vec2 q = p * 3.0;
+
+    // Velocity field from noise gradients
+    float n1 = fbm(q + vec2(0.01, 0.0), time);
+    float n2 = fbm(q - vec2(0.01, 0.0), time);
+    float n3 = fbm(q + vec2(0.0, 0.01), time);
+    float n4 = fbm(q - vec2(0.0, 0.01), time);
+    vec2 curl = vec2(n3 - n4, n1 - n2) * 20.0;
+
+    // Advect coordinates
+    vec2 advected = q + curl * 0.15;
+
+    // Multiple smoke layers at different depths
+    float smoke1 = fbm(advected, time);
+    float smoke2 = fbm(advected * 1.5 + vec2(100.0), time * 0.8);
+    float smoke3 = fbm(advected * 2.0 + vec2(200.0), time * 0.6);
+
+    // Combine layers with depth
+    float smoke = smoke1 * 0.5 + smoke2 * 0.35 + smoke3 * 0.25;
+
+    // Rising motion
+    vec2 rise = vec2(sin(p.x * 4.0 + time) * 0.2, time * 0.5);
+    smoke += fbm(q + rise, time) * 0.3;
+
+    smoke = smoothstep(0.2, 0.9, smoke);
+
+    vec3 col = palette(smoke + time * 0.05);
+    col *= 0.3 + smoke * 0.9;
+
+    // Hot spots
+    float hot = pow(smoke, 3.0);
+    col += vec3(1.0, 0.5, 0.3) * hot * 0.4;
+
+    // Wispy tendrils
+    float wisps = fbm(advected * 4.0, time * 1.2);
+    wisps = pow(wisps, 2.0);
+    col += vec3(1.0, 0.3, 0.7) * wisps * 0.3;
+
+    // Turbulent eddies
+    float eddie = sin(fbm(advected * 8.0, time * 2.0) * 10.0);
+    eddie = eddie * 0.5 + 0.5;
+    col += vec3(0.9, 0.2, 0.5) * eddie * 0.1 * smoke;
+
+    col += palette(smoke + 0.3) * inLogo * 0.7 * (0.5 + 0.5 * sin(t * 2.0));
+    col *= 1.0 + inLogo * 0.4;
+    col *= 1.0 - smoothstep(0.1, 1.3, length(p));
+    col += col * col * 0.3;
     gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
         const prog = gl.createProgram();
         gl.attachShader(prog, vs); gl.attachShader(prog, fs);
         gl.linkProgram(prog); gl.useProgram(prog);
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const pp = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(pp);
-        gl.vertexAttribPointer(pp, 2, gl.FLOAT, false, 0, 0);
+        const posAttr = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');

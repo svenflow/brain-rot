@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Kaleidoscope</title>
+    <title>Brain Rot - Turing Patterns</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -196,7 +196,7 @@
   <path class="cls-3" d="M585.73,429.44c15.77-2.62,20.34,9.4,26.52,20.91-3.35,4.19-4.35,5.07-8.62,8.41l-1.4.62c-2.62-1.79-8.65-18.2-10.63-22.66h-8.88c-2.11-2.15-3.42-2.75-3.95-5.32,1.63-1.63,4.51-1.64,6.96-1.97Z"/>
   <path class="cls-3" d="M127.23,350.22c2.78.79,3.31.85,4.96,3.13.65,2.48.53,2.6-.36,5.11-2.61-1.31-3.85-1.74-5.94-3.81-.44-2.63-.49-1.61,1.33-4.43Z"/>
   <path class="cls-3" d="M574.02,350.23c2.39,1.02,2.83,1.2,4.92,2.68l.15,1.5-1.98,1.98c-1.9.33-2.88.72-4.61-.08-.56-2.28.49-3.52,1.53-6.08Z"/>
-</svg>    </div>
+</svg>        </div>
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
@@ -243,8 +243,11 @@
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
             precision highp float;
-            uniform vec2 r; uniform float t;
-            uniform sampler2D logo; uniform vec4 logoRect;
+            uniform vec2 r;
+            uniform float t;
+            uniform sampler2D logo;
+            uniform vec4 logoRect;
+
             float getLogo(vec2 uv) {
                 vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
                 logoUV.y = 1.0 - logoUV.y;
@@ -253,52 +256,103 @@
                 }
                 return 0.0;
             }
-            
+
+
+// Turing/reaction-diffusion inspired organic patterns
+vec3 palette(float d) {
+    vec3 a = vec3(0.5, 0.1, 0.4);
+    vec3 b = vec3(0.5, 0.2, 0.4);
+    vec3 c = vec3(1.0, 1.0, 1.0);
+    vec3 e = vec3(0.9, 0.3, 0.6);
+    return a + b * cos(6.28 * (c * d + e));
+}
+
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
 float noise(vec2 p) {
-    vec2 i = floor(p); vec2 f = fract(p);
+    vec2 i = floor(p), f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
+               mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
+
+float fbm(vec2 p) {
+    float v = 0.0, a = 0.5;
+    mat2 rot = mat2(0.877, 0.479, -0.479, 0.877);
+    v += a * noise(p); p = rot * p * 2.0; a *= 0.5;
+    v += a * noise(p); p = rot * p * 2.0; a *= 0.5;
+    v += a * noise(p); p = rot * p * 2.0; a *= 0.5;
+    v += a * noise(p); p = rot * p * 2.0; a *= 0.5;
+    v += a * noise(p);
+    return v;
 }
 
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
+    vec2 p = (gl_FragCoord.xy - 0.5 * r) / r.y;
     float inLogo = getLogo(uv);
-    
-    vec2 c = uv - 0.5;
-    float angle = atan(c.y, c.x);
-    float dist = length(c);
-    
-    // Kaleidoscope folding
-    float segments = 8.0;
-    angle = mod(angle, 3.14159 * 2.0 / segments);
-    angle = abs(angle - 3.14159 / segments);
-    
-    vec2 kp = vec2(cos(angle), sin(angle)) * dist;
-    
-    // Animated pattern
-    float pattern = noise(kp * 10.0 + t * 0.5);
-    pattern += 0.5 * noise(kp * 20.0 - t * 0.3);
-    pattern += 0.25 * noise(kp * 40.0 + t * 0.2);
-    
-    vec3 col = vec3(0.8, 0.15, 0.5) * pattern;
-    col = mix(col, vec3(0.4, 0.05, 0.25), smoothstep(0.2, 0.5, dist));
-    col += vec3(0.3, 0.1, 0.2) * inLogo;
-    col *= 1.0 - smoothstep(0.35, 0.55, dist);
-    
+    float time = t * 0.15;
+
+    // Simulate reaction-diffusion with layered noise
+    vec2 q = p * 4.0;
+
+    // Chemical A - slow moving, large scale
+    float chemA = fbm(q + vec2(time * 0.3, time * 0.2));
+    chemA += fbm(q * 1.5 - vec2(time * 0.2, time * 0.4)) * 0.5;
+
+    // Chemical B - faster, smaller scale, inverse correlation
+    float chemB = fbm(q * 2.0 + vec2(time * 0.5, -time * 0.3));
+    chemB = 1.0 - chemB;
+
+    // Reaction term - where chemicals interact
+    float reaction = chemA * chemB;
+    reaction = smoothstep(0.2, 0.6, reaction);
+
+    // Create organic cell-like boundaries
+    float cells = fbm(q * 3.0 + time * 0.2);
+    cells = abs(cells - 0.5) * 2.0;
+    cells = 1.0 - smoothstep(0.0, 0.3, cells);
+
+    // Combine patterns
+    float pattern = reaction * 0.6 + cells * 0.4;
+
+    // Animate spots/stripes morphing
+    float morph = sin(time * 2.0) * 0.5 + 0.5;
+    float spots = fbm(q * 5.0 + time * 0.1);
+    float stripes = sin(q.x * 8.0 + q.y * 4.0 + time);
+    pattern += mix(spots, stripes * 0.5 + 0.5, morph) * 0.3;
+
+    pattern = clamp(pattern, 0.0, 1.0);
+
+    vec3 col = palette(pattern + time * 0.05);
+    col *= 0.4 + pattern * 0.8;
+
+    // Edge glow effect on cell boundaries
+    float edge = 1.0 - cells;
+    col += vec3(1.0, 0.4, 0.8) * edge * 0.3;
+
+    // Pulsing organic movement
+    float pulse = sin(pattern * 10.0 + time * 3.0) * 0.5 + 0.5;
+    col += vec3(1.0, 0.2, 0.6) * pulse * 0.1 * pattern;
+
+    col += palette(pattern + 0.3) * inLogo * 0.7 * (0.6 + 0.4 * sin(t * 2.0));
+    col *= 1.0 + inLogo * 0.3;
+    col *= 1.0 - smoothstep(0.15, 1.2, length(p));
+    col += col * col * 0.25;
     gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
         const prog = gl.createProgram();
         gl.attachShader(prog, vs); gl.attachShader(prog, fs);
         gl.linkProgram(prog); gl.useProgram(prog);
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const pp = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(pp);
-        gl.vertexAttribPointer(pp, 2, gl.FLOAT, false, 0, 0);
+        const posAttr = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');

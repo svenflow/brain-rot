@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Nebula</title>
+    <title>Brain Rot - Electric Tendrils</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -196,7 +196,7 @@
   <path class="cls-3" d="M585.73,429.44c15.77-2.62,20.34,9.4,26.52,20.91-3.35,4.19-4.35,5.07-8.62,8.41l-1.4.62c-2.62-1.79-8.65-18.2-10.63-22.66h-8.88c-2.11-2.15-3.42-2.75-3.95-5.32,1.63-1.63,4.51-1.64,6.96-1.97Z"/>
   <path class="cls-3" d="M127.23,350.22c2.78.79,3.31.85,4.96,3.13.65,2.48.53,2.6-.36,5.11-2.61-1.31-3.85-1.74-5.94-3.81-.44-2.63-.49-1.61,1.33-4.43Z"/>
   <path class="cls-3" d="M574.02,350.23c2.39,1.02,2.83,1.2,4.92,2.68l.15,1.5-1.98,1.98c-1.9.33-2.88.72-4.61-.08-.56-2.28.49-3.52,1.53-6.08Z"/>
-</svg>    </div>
+</svg>        </div>
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
@@ -243,8 +243,11 @@
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
             precision highp float;
-            uniform vec2 r; uniform float t;
-            uniform sampler2D logo; uniform vec4 logoRect;
+            uniform vec2 r;
+            uniform float t;
+            uniform sampler2D logo;
+            uniform vec4 logoRect;
+
             float getLogo(vec2 uv) {
                 vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
                 logoUV.y = 1.0 - logoUV.y;
@@ -253,55 +256,102 @@
                 }
                 return 0.0;
             }
-            
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float noise(vec2 p) {
-    vec2 i = floor(p); vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+
+
+// Electric energy tendrils / lightning
+#define PI 3.14159265359
+
+vec3 palette(float d) {
+    return vec3(1.0, 0.3, 0.7) + vec3(-0.2, 0.2, 0.3) * cos(6.28 * (d + vec3(0.0, 0.1, 0.2)));
 }
-float fbm(vec2 p) {
-    float v = 0.0;
-    v += 0.5 * noise(p); p *= 2.0;
-    v += 0.25 * noise(p); p *= 2.0;
-    v += 0.125 * noise(p); p *= 2.0;
-    v += 0.0625 * noise(p);
-    return v;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
+               mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
+
+float lightning(vec2 p, float time, float freq) {
+    float y = p.y;
+    float x = p.x;
+
+    // Jagged displacement
+    float displacement = 0.0;
+    float amp = 0.15;
+    float f = freq;
+    displacement += sin(y * f + time * 8.0 + hash(vec2(floor(y * f), 0.0)) * 10.0) * amp; f *= 2.1; amp *= 0.5;
+    displacement += sin(y * f + time * 12.0 + hash(vec2(floor(y * f), 1.0)) * 10.0) * amp; f *= 2.2; amp *= 0.5;
+    displacement += sin(y * f + time * 16.0 + hash(vec2(floor(y * f), 2.0)) * 10.0) * amp; f *= 1.9; amp *= 0.5;
+    displacement += sin(y * f + time * 20.0 + hash(vec2(floor(y * f), 3.0)) * 10.0) * amp;
+
+    float dist = abs(x - displacement);
+    return 0.015 / (dist + 0.01);
 }
 
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
+    vec2 p = (gl_FragCoord.xy - 0.5 * r) / r.y;
     float inLogo = getLogo(uv);
-    
-    // Cosmic dust layers
-    float dust1 = fbm(uv * 3.0 + t * 0.1);
-    float dust2 = fbm(uv * 5.0 - t * 0.08 + vec2(10.0));
-    float dust3 = fbm(uv * 8.0 + t * 0.05);
-    
-    // Stars
-    float stars = step(0.98, hash(floor(uv * 100.0)));
-    stars *= 0.5 + 0.5 * sin(t * 3.0 + hash(floor(uv * 100.0)) * 10.0);
-    
-    vec3 col = vec3(0.1, 0.02, 0.08) * dust1;
-    col += vec3(0.6, 0.1, 0.4) * dust2 * 0.5;
-    col += vec3(0.3, 0.05, 0.2) * dust3 * 0.3;
-    col += vec3(1.0, 0.8, 0.9) * stars;
-    col += vec3(0.5, 0.15, 0.4) * inLogo * (0.5 + dust1 * 0.5);
-    col *= 1.0 - smoothstep(0.3, 0.95, length(uv - 0.5));
-    
+    float time = t;
+
+    vec3 col = vec3(0.02, 0.0, 0.03);
+
+    // Multiple lightning bolts from different angles
+    float bolt1 = lightning(p, time, 8.0);
+    float bolt2 = lightning(p * mat2(0.866, 0.5, -0.5, 0.866), time + 1.0, 10.0);
+    float bolt3 = lightning(p * mat2(0.866, -0.5, 0.5, 0.866), time + 2.0, 7.0);
+    float bolt4 = lightning(p * mat2(0.707, 0.707, -0.707, 0.707) + vec2(0.3, 0.0), time + 0.5, 12.0);
+    float bolt5 = lightning(p * mat2(0.707, -0.707, 0.707, 0.707) + vec2(-0.3, 0.0), time + 1.5, 9.0);
+
+    // Flicker
+    float flicker1 = step(0.7, hash(vec2(floor(time * 10.0), 1.0)));
+    float flicker2 = step(0.6, hash(vec2(floor(time * 8.0), 2.0)));
+    float flicker3 = step(0.8, hash(vec2(floor(time * 12.0), 3.0)));
+
+    bolt1 *= 0.5 + 0.5 * flicker1;
+    bolt2 *= 0.4 + 0.6 * flicker2;
+    bolt3 *= 0.3 + 0.7 * flicker3;
+
+    float bolts = bolt1 + bolt2 * 0.7 + bolt3 * 0.6 + bolt4 * 0.5 + bolt5 * 0.4;
+
+    col += palette(bolts * 0.1 + time * 0.1) * bolts;
+
+    // Electric glow background
+    float glow = noise(p * 5.0 + time * 0.5) * noise(p * 8.0 - time * 0.3);
+    glow = pow(glow, 2.0);
+    col += vec3(0.6, 0.1, 0.4) * glow * 0.4;
+
+    // Spark particles
+    float sparks = step(0.995, hash(floor(p * 50.0 + time * 5.0)));
+    sparks *= sin(time * 30.0 + hash(floor(p * 50.0)) * 100.0) * 0.5 + 0.5;
+    col += vec3(1.0, 0.8, 1.0) * sparks;
+
+    // Core energy
+    float core = 0.1 / (length(p) + 0.1);
+    core *= 0.5 + 0.5 * sin(time * 5.0);
+    col += vec3(1.0, 0.4, 0.8) * core * 0.3;
+
+    col += palette(0.5) * inLogo * 0.8 * (0.5 + 0.5 * sin(time * 3.0));
+    col *= 1.0 + inLogo * 0.5;
+    col *= 1.0 - smoothstep(0.2, 1.1, length(p));
+    col = pow(col, vec3(0.9));
     gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
         const prog = gl.createProgram();
         gl.attachShader(prog, vs); gl.attachShader(prog, fs);
         gl.linkProgram(prog); gl.useProgram(prog);
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const pp = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(pp);
-        gl.vertexAttribPointer(pp, 2, gl.FLOAT, false, 0, 0);
+        const posAttr = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');

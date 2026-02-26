@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Plasma</title>
+    <title>Brain Rot - Plasma Vortex</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -196,23 +196,20 @@
   <path class="cls-3" d="M585.73,429.44c15.77-2.62,20.34,9.4,26.52,20.91-3.35,4.19-4.35,5.07-8.62,8.41l-1.4.62c-2.62-1.79-8.65-18.2-10.63-22.66h-8.88c-2.11-2.15-3.42-2.75-3.95-5.32,1.63-1.63,4.51-1.64,6.96-1.97Z"/>
   <path class="cls-3" d="M127.23,350.22c2.78.79,3.31.85,4.96,3.13.65,2.48.53,2.6-.36,5.11-2.61-1.31-3.85-1.74-5.94-3.81-.44-2.63-.49-1.61,1.33-4.43Z"/>
   <path class="cls-3" d="M574.02,350.23c2.39,1.02,2.83,1.2,4.92,2.68l.15,1.5-1.98,1.98c-1.9.33-2.88.72-4.61-.08-.56-2.28.49-3.52,1.53-6.08Z"/>
-</svg>    </div>
+</svg>        </div>
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
         const svgCanvas = document.getElementById('svgCanvas');
         const svgCtx = svgCanvas.getContext('2d');
-        
         let logoTexture = null;
         let logoRect = { x: 0, y: 0, w: 1, h: 1 };
-        
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             gl.viewport(0, 0, canvas.width, canvas.height);
             updateLogoTexture();
         }
-        
         function updateLogoTexture() {
             const logo = document.querySelector('.logo svg');
             const rect = logo.getBoundingClientRect();
@@ -220,20 +217,15 @@
             logoRect.y = 1.0 - (rect.bottom / window.innerHeight);
             logoRect.w = rect.width / window.innerWidth;
             logoRect.h = rect.height / window.innerHeight;
-            
-            svgCanvas.width = 512;
-            svgCanvas.height = 512;
-            
+            svgCanvas.width = 512; svgCanvas.height = 512;
             const img = new Image();
             const svgData = new XMLSerializer().serializeToString(logo);
             const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
             const url = URL.createObjectURL(svgBlob);
-            
             img.onload = function() {
                 svgCtx.clearRect(0, 0, 512, 512);
                 svgCtx.drawImage(img, 0, 0, 512, 512);
                 URL.revokeObjectURL(url);
-                
                 if (!logoTexture) logoTexture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, logoTexture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, svgCanvas);
@@ -244,22 +236,18 @@
             };
             img.src = url;
         }
-        
-        resize();
-        window.onresize = resize;
-        
+        resize(); window.onresize = resize;
         const vs = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(vs, 'attribute vec2 pos;void main(){gl_Position=vec4(pos,0,1);}');
         gl.compileShader(vs);
-        
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
-            precision mediump float;
+            precision highp float;
             uniform vec2 r;
             uniform float t;
             uniform sampler2D logo;
             uniform vec4 logoRect;
-            
+
             float getLogo(vec2 uv) {
                 vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
                 logoUV.y = 1.0 - logoUV.y;
@@ -268,48 +256,87 @@
                 }
                 return 0.0;
             }
-            
-            
+
+
+// Plasma vortex with kaleidoscopic reflection
+#define PI 3.14159265359
+#define TAU 6.28318530718
+
+vec3 palette(float d) {
+    return 0.5 + 0.5 * cos(TAU * (d + vec3(0.0, 0.1, 0.2)) + vec3(0.9, 0.2, 0.6));
+}
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
+    vec2 p = (gl_FragCoord.xy - 0.5 * r) / r.y;
     float inLogo = getLogo(uv);
-    
-    float v = sin(uv.x * 8.0 + t);
-    v += sin(uv.y * 8.0 + t * 1.2);
-    v += sin((uv.x + uv.y) * 6.0 + t * 0.8);
-    v += sin(length(uv - 0.5) * 12.0 - t * 1.5);
-    v = v * 0.25 + 0.5;
-    
-    // Intensify near logo
-    v += inLogo * 0.3 * sin(t * 2.0);
-    
-    vec3 col = vec3(v * 0.35, v * 0.05, v * 0.25);
-    col *= 1.0 - smoothstep(0.3, 0.95, length(uv - 0.5));
-    
+
+    // Polar coords
+    float angle = atan(p.y, p.x);
+    float rad = length(p);
+
+    // Kaleidoscope - 8 segments
+    float segments = 8.0;
+    float segAngle = TAU / segments;
+    angle = mod(angle, segAngle);
+    if (mod(floor(atan(p.y, p.x) / segAngle), 2.0) > 0.5) angle = segAngle - angle;
+
+    // Animate spiral
+    angle += t * 0.3 - rad * 4.0;
+
+    // Multi-layer plasma
+    float plasma = 0.0;
+    plasma += sin(angle * 3.0 + t);
+    plasma += sin(rad * 12.0 - t * 1.5);
+    plasma += sin((angle + rad) * 5.0 + t * 0.7);
+    plasma += sin(sqrt(rad) * 15.0 - t * 2.0);
+
+    // Secondary detail
+    float detail = sin(angle * 7.0 + rad * 20.0 - t * 3.0) * 0.3;
+    plasma += detail;
+
+    plasma = plasma * 0.15 + 0.5;
+    plasma = pow(plasma, 1.2);
+
+    vec3 col = palette(plasma + t * 0.05);
+
+    // Radial energy waves
+    float waves = sin(rad * 25.0 - t * 4.0) * 0.5 + 0.5;
+    waves = pow(waves, 3.0);
+    col += vec3(1.0, 0.4, 0.8) * waves * 0.3 * (1.0 - rad);
+
+    // Center glow
+    col += vec3(1.0, 0.2, 0.6) * 0.3 / (1.0 + rad * 3.0);
+
+    // Spiral arms
+    float arms = sin(angle * 4.0 + rad * 8.0 - t * 2.0);
+    arms = smoothstep(0.5, 0.8, arms);
+    col += vec3(1.0, 0.5, 0.9) * arms * 0.2 * (1.0 - rad * 0.5);
+
+    col += palette(plasma + 0.3) * inLogo * 0.7 * (0.6 + 0.4 * sin(t * 3.0));
+    col *= 1.0 + inLogo * 0.3;
+    col *= 1.0 - smoothstep(0.3, 1.2, rad);
+    col += col * col * 0.25;
     gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
-        
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
         const prog = gl.createProgram();
-        gl.attachShader(prog, vs);
-        gl.attachShader(prog, fs);
-        gl.linkProgram(prog);
-        gl.useProgram(prog);
-        
+        gl.attachShader(prog, vs); gl.attachShader(prog, fs);
+        gl.linkProgram(prog); gl.useProgram(prog);
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        
-        const p = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(p);
-        gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
-        
+        const posAttr = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');
         const logoRectLoc = gl.getUniformLocation(prog, 'logoRect');
-        
         function render(time) {
             gl.uniform2f(rLoc, canvas.width, canvas.height);
             gl.uniform1f(tLoc, time * 0.001);

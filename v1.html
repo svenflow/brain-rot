@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Warped Smoke</title>
+    <title>Brain Rot - Cosmic Nebula</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -196,7 +196,7 @@
   <path class="cls-3" d="M585.73,429.44c15.77-2.62,20.34,9.4,26.52,20.91-3.35,4.19-4.35,5.07-8.62,8.41l-1.4.62c-2.62-1.79-8.65-18.2-10.63-22.66h-8.88c-2.11-2.15-3.42-2.75-3.95-5.32,1.63-1.63,4.51-1.64,6.96-1.97Z"/>
   <path class="cls-3" d="M127.23,350.22c2.78.79,3.31.85,4.96,3.13.65,2.48.53,2.6-.36,5.11-2.61-1.31-3.85-1.74-5.94-3.81-.44-2.63-.49-1.61,1.33-4.43Z"/>
   <path class="cls-3" d="M574.02,350.23c2.39,1.02,2.83,1.2,4.92,2.68l.15,1.5-1.98,1.98c-1.9.33-2.88.72-4.61-.08-.56-2.28.49-3.52,1.53-6.08Z"/>
-</svg>    </div>
+</svg>        </div>
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
@@ -243,8 +243,11 @@
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
             precision highp float;
-            uniform vec2 r; uniform float t;
-            uniform sampler2D logo; uniform vec4 logoRect;
+            uniform vec2 r;
+            uniform float t;
+            uniform sampler2D logo;
+            uniform vec4 logoRect;
+
             float getLogo(vec2 uv) {
                 vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
                 logoUV.y = 1.0 - logoUV.y;
@@ -253,65 +256,89 @@
                 }
                 return 0.0;
             }
-            
-// Magenta palette
-vec3 palette(float t) {
-    vec3 a = vec3(0.2, 0.0, 0.1);
-    vec3 b = vec3(0.6, 0.1, 0.4);
-    vec3 c = vec3(1.0, 0.5, 1.0);
-    vec3 d = vec3(0.0, 0.1, 0.2);
-    return a + b * cos(6.28318 * (c * t + d));
+
+
+// Cosmic Nebula - multi-layer domain warping with volumetric appearance
+vec3 palette(float d) {
+    vec3 a = vec3(0.5, 0.1, 0.4);
+    vec3 b = vec3(0.5, 0.3, 0.4);
+    vec3 c = vec3(1.0, 0.8, 1.2);
+    vec3 e = vec3(0.9, 0.2, 0.6);
+    return a + b * cos(6.28318 * (c * d + e));
 }
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
 float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
+    vec2 i = floor(p), f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
                mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
 }
 
 float fbm(vec2 p) {
-    float v = 0.0;
-    v += 0.5 * noise(p); p *= 2.01;
-    v += 0.25 * noise(p); p *= 2.02;
-    v += 0.125 * noise(p); p *= 2.03;
-    v += 0.0625 * noise(p);
+    float v = 0.0, a = 0.5;
+    mat2 rot = mat2(0.877, 0.479, -0.479, 0.877);
+    v += a * noise(p); p = rot * p * 2.01; a *= 0.5;
+    v += a * noise(p); p = rot * p * 2.02; a *= 0.5;
+    v += a * noise(p); p = rot * p * 2.03; a *= 0.5;
+    v += a * noise(p); p = rot * p * 2.01; a *= 0.5;
+    v += a * noise(p); p = rot * p * 2.02; a *= 0.5;
+    v += a * noise(p);
     return v;
 }
 
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
+    vec2 p = (gl_FragCoord.xy - 0.5 * r) / r.y;
     float inLogo = getLogo(uv);
-    
-    // Domain warping
-    vec2 q = vec2(fbm(uv * 3.0 + t * 0.1), fbm(uv * 3.0 + vec2(5.2, 1.3) + t * 0.12));
-    vec2 rr = vec2(fbm(uv * 3.0 + 2.0 * q + vec2(1.7, 9.2) + t * 0.08), fbm(uv * 3.0 + 2.0 * q + vec2(8.3, 2.8) + t * 0.1));
-    float f = fbm(uv * 3.0 + 2.0 * rr);
-    
-    // Color based on warped noise + logo interaction
-    f += inLogo * 0.3;
-    vec3 col = palette(f * 0.8 + t * 0.05);
-    col *= 0.5 + f * 0.5;
-    
-    // Vignette
-    col *= 1.0 - smoothstep(0.3, 0.9, length(uv - 0.5));
-    
-    gl_FragColor = vec4(col * 0.7, 1.0);
+    float time = t * 0.12;
+
+    // Triple domain warp for depth
+    vec2 q = vec2(fbm(p * 2.0 + time), fbm(p * 2.0 + vec2(5.2, 1.3) + time * 0.8));
+    vec2 rr = vec2(fbm(p * 2.0 + 4.0 * q + vec2(1.7, 9.2) + time * 0.4),
+                   fbm(p * 2.0 + 4.0 * q + vec2(8.3, 2.8) + time * 0.6));
+    float f = fbm(p * 2.0 + 4.0 * rr);
+
+    // Secondary detail layer
+    vec2 q2 = vec2(fbm(p * 5.0 - time * 0.3), fbm(p * 5.0 + vec2(3.1, 7.4) - time * 0.2));
+    float f2 = fbm(p * 4.0 + 2.0 * q2);
+
+    float nebula = f * 0.65 + f2 * 0.35;
+    nebula = pow(nebula, 1.4);
+
+    vec3 col = palette(nebula + time * 0.08);
+    col *= 0.35 + nebula * 0.9;
+
+    // Volumetric streaks
+    float streaks = pow(fbm(p * 10.0 + vec2(time * 0.4, time * 0.2)), 2.5);
+    col += vec3(1.0, 0.4, 0.8) * streaks * 0.4;
+
+    // Logo energy concentration
+    col += palette(f + 0.3) * inLogo * 0.7 * (0.7 + 0.3 * sin(t * 2.5));
+    col *= 1.0 + inLogo * 0.4;
+
+    // Twinkling stars
+    float stars = step(0.997, hash(floor(p * 180.0)));
+    stars *= 0.4 + 0.6 * sin(t * 8.0 + hash(floor(p * 180.0)) * 80.0);
+    col += vec3(1.0, 0.85, 1.0) * stars;
+
+    col *= 1.0 - smoothstep(0.15, 1.3, length(p));
+    col += col * col * 0.35;
+    gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
         const prog = gl.createProgram();
         gl.attachShader(prog, vs); gl.attachShader(prog, fs);
         gl.linkProgram(prog); gl.useProgram(prog);
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const p = gl.getAttribLocation(prog, 'pos');
-        gl.enableVertexAttribArray(p);
-        gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+        const posAttr = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
         const logoLoc = gl.getUniformLocation(prog, 'logo');

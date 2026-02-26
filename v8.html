@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot - Morphing Blobs</title>
+    <title>Brain Rot - Voronoi Cells</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
@@ -196,7 +196,7 @@
   <path class="cls-3" d="M585.73,429.44c15.77-2.62,20.34,9.4,26.52,20.91-3.35,4.19-4.35,5.07-8.62,8.41l-1.4.62c-2.62-1.79-8.65-18.2-10.63-22.66h-8.88c-2.11-2.15-3.42-2.75-3.95-5.32,1.63-1.63,4.51-1.64,6.96-1.97Z"/>
   <path class="cls-3" d="M127.23,350.22c2.78.79,3.31.85,4.96,3.13.65,2.48.53,2.6-.36,5.11-2.61-1.31-3.85-1.74-5.94-3.81-.44-2.63-.49-1.61,1.33-4.43Z"/>
   <path class="cls-3" d="M574.02,350.23c2.39,1.02,2.83,1.2,4.92,2.68l.15,1.5-1.98,1.98c-1.9.33-2.88.72-4.61-.08-.56-2.28.49-3.52,1.53-6.08Z"/>
-</svg>    </div>
+</svg>        </div>
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
@@ -204,19 +204,28 @@
         const svgCtx = svgCanvas.getContext('2d');
         let logoTexture = null;
         let logoRect = { x: 0, y: 0, w: 1, h: 1 };
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; gl.viewport(0, 0, canvas.width, canvas.height); updateLogoTexture(); }
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            updateLogoTexture();
+        }
         function updateLogoTexture() {
             const logo = document.querySelector('.logo svg');
             const rect = logo.getBoundingClientRect();
-            logoRect.x = rect.left / window.innerWidth; logoRect.y = 1.0 - (rect.bottom / window.innerHeight);
-            logoRect.w = rect.width / window.innerWidth; logoRect.h = rect.height / window.innerHeight;
+            logoRect.x = rect.left / window.innerWidth;
+            logoRect.y = 1.0 - (rect.bottom / window.innerHeight);
+            logoRect.w = rect.width / window.innerWidth;
+            logoRect.h = rect.height / window.innerHeight;
             svgCanvas.width = 512; svgCanvas.height = 512;
             const img = new Image();
             const svgData = new XMLSerializer().serializeToString(logo);
             const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
             const url = URL.createObjectURL(svgBlob);
             img.onload = function() {
-                svgCtx.clearRect(0, 0, 512, 512); svgCtx.drawImage(img, 0, 0, 512, 512); URL.revokeObjectURL(url);
+                svgCtx.clearRect(0, 0, 512, 512);
+                svgCtx.drawImage(img, 0, 0, 512, 512);
+                URL.revokeObjectURL(url);
                 if (!logoTexture) logoTexture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, logoTexture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, svgCanvas);
@@ -224,7 +233,8 @@
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            }; img.src = url;
+            };
+            img.src = url;
         }
         resize(); window.onresize = resize;
         const vs = gl.createShader(gl.VERTEX_SHADER);
@@ -233,58 +243,176 @@
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
             precision highp float;
-            uniform vec2 r; uniform float t;
-            uniform sampler2D logo; uniform vec4 logoRect;
+            uniform vec2 r;
+            uniform float t;
+            uniform sampler2D logo;
+            uniform vec4 logoRect;
+
             float getLogo(vec2 uv) {
-                vec2 logoUV = (uv - logoRect.xy) / logoRect.zw; logoUV.y = 1.0 - logoUV.y;
-                if (logoUV.x >= 0.0 && logoUV.x <= 1.0 && logoUV.y >= 0.0 && logoUV.y <= 1.0) return texture2D(logo, logoUV).a;
+                vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
+                logoUV.y = 1.0 - logoUV.y;
+                if (logoUV.x >= 0.0 && logoUV.x <= 1.0 && logoUV.y >= 0.0 && logoUV.y <= 1.0) {
+                    return texture2D(logo, logoUV).a;
+                }
                 return 0.0;
             }
-            
+
+
+// Animated voronoi cells with morphing
+vec3 palette(float d) {
+    return vec3(0.9, 0.2, 0.6) + vec3(0.1, 0.3, 0.4) * cos(6.28 * (d + vec3(0.0, 0.2, 0.4)));
+}
+
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+vec2 hash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
 
 void main() {
     vec2 uv = gl_FragCoord.xy / r;
+    vec2 p = (gl_FragCoord.xy - 0.5 * r) / r.y;
     float inLogo = getLogo(uv);
-    
-    // Multiple metaballs
-    float blobs = 0.0;
-    vec2 b1 = vec2(0.3 + 0.2*sin(t*0.7), 0.5 + 0.2*cos(t*0.5));
-    vec2 b2 = vec2(0.7 + 0.15*cos(t*0.8), 0.4 + 0.2*sin(t*0.6));
-    vec2 b3 = vec2(0.5 + 0.25*sin(t*0.4), 0.7 + 0.15*cos(t*0.9));
-    vec2 b4 = vec2(0.4 + 0.2*cos(t*0.5), 0.3 + 0.2*sin(t*0.7));
-    
-    blobs += 0.08 / (0.001 + length(uv - b1));
-    blobs += 0.06 / (0.001 + length(uv - b2));
-    blobs += 0.07 / (0.001 + length(uv - b3));
-    blobs += 0.05 / (0.001 + length(uv - b4));
-    
-    // Threshold for blob edges
-    float edge = smoothstep(0.95, 1.05, blobs);
-    float glow = smoothstep(0.5, 1.0, blobs) * 0.3;
-    
-    vec3 col = vec3(0.03, 0.0, 0.02);
-    col += vec3(0.9, 0.2, 0.6) * edge;
-    col += vec3(0.5, 0.1, 0.35) * glow;
-    col += vec3(0.4, 0.1, 0.3) * inLogo * (0.6 + 0.4*edge);
-    col *= 1.0 - smoothstep(0.3, 0.95, length(uv - 0.5));
-    
+    float time = t * 0.5;
+
+    vec2 st = p * 5.0;
+    vec2 i_st = floor(st);
+    vec2 f_st = fract(st);
+
+    float m_dist = 10.0;
+    vec2 m_point = vec2(0.0);
+    vec2 m_cell = vec2(0.0);
+    float second_dist = 10.0;
+
+    // Check 3x3 neighborhood
+    // Unrolled for iOS
+    vec2 neighbor;
+    vec2 point;
+    vec2 diff;
+    float dist;
+
+    neighbor = vec2(-1.0, -1.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(0.0, -1.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(1.0, -1.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(-1.0, 0.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(0.0, 0.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(1.0, 0.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(-1.0, 1.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(0.0, 1.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    neighbor = vec2(1.0, 1.0);
+    point = hash2(i_st + neighbor);
+    point = 0.5 + 0.5 * sin(time + 6.28 * point);
+    diff = neighbor + point - f_st;
+    dist = length(diff);
+    if (dist < m_dist) { second_dist = m_dist; m_dist = dist; m_point = point; m_cell = i_st + neighbor; }
+    else if (dist < second_dist) { second_dist = dist; }
+
+    // Cell coloring
+    float cellId = hash(m_cell);
+    float edge = second_dist - m_dist;
+
+    vec3 col = palette(cellId + time * 0.1);
+
+    // Pulsing cells
+    float pulse = sin(time * 2.0 + cellId * 6.28) * 0.5 + 0.5;
+    col *= 0.4 + pulse * 0.6;
+
+    // Edge glow
+    float edgeGlow = smoothstep(0.05, 0.0, edge);
+    col += vec3(1.0, 0.5, 0.9) * edgeGlow;
+
+    // Inner cell gradient
+    col *= 0.7 + 0.3 * (1.0 - m_dist);
+
+    // Distance field effect
+    col += vec3(1.0, 0.3, 0.7) * smoothstep(0.3, 0.0, m_dist) * 0.3;
+
+    col += palette(cellId + 0.3) * inLogo * 0.7 * (0.5 + 0.5 * sin(time * 4.0));
+    col *= 1.0 + inLogo * 0.4;
+    col *= 1.0 - smoothstep(0.15, 1.2, length(p));
+    col += col * col * 0.25;
     gl_FragColor = vec4(col, 1.0);
 }
         `);
         gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
         const prog = gl.createProgram();
-        gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog); gl.useProgram(prog);
-        const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.attachShader(prog, vs); gl.attachShader(prog, fs);
+        gl.linkProgram(prog); gl.useProgram(prog);
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        const pp = gl.getAttribLocation(prog, 'pos'); gl.enableVertexAttribArray(pp); gl.vertexAttribPointer(pp, 2, gl.FLOAT, false, 0, 0);
-        const rLoc = gl.getUniformLocation(prog, 'r'); const tLoc = gl.getUniformLocation(prog, 't');
-        const logoLoc = gl.getUniformLocation(prog, 'logo'); const logoRectLoc = gl.getUniformLocation(prog, 'logoRect');
+        const posAttr = gl.getAttribLocation(prog, 'pos');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
+        const rLoc = gl.getUniformLocation(prog, 'r');
+        const tLoc = gl.getUniformLocation(prog, 't');
+        const logoLoc = gl.getUniformLocation(prog, 'logo');
+        const logoRectLoc = gl.getUniformLocation(prog, 'logoRect');
         function render(time) {
-            gl.uniform2f(rLoc, canvas.width, canvas.height); gl.uniform1f(tLoc, time * 0.001);
+            gl.uniform2f(rLoc, canvas.width, canvas.height);
+            gl.uniform1f(tLoc, time * 0.001);
             gl.uniform4f(logoRectLoc, logoRect.x, logoRect.y, logoRect.w, logoRect.h);
-            if (logoTexture) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, logoTexture); gl.uniform1i(logoLoc, 0); }
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(render);
+            if (logoTexture) {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, logoTexture);
+                gl.uniform1i(logoLoc, 0);
+            }
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            requestAnimationFrame(render);
         }
         setTimeout(() => { updateLogoTexture(); render(0); }, 100);
     </script>
