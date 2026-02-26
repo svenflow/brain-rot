@@ -409,8 +409,17 @@ void main() {
     col += vec3(0.9, 0.2, 0.5) * eddie * 0.1 * smoke;
 
 
-    // Darken background behind logo hull for better SVG visibility
+    // Visible pulsating waves emanating from hull
     float logoHull = getLogoHull(uv);
+    float hullDist2 = 1.0 - logoHull;
+    float pulseWave1 = sin(hullDist2 * 20.0 - t * 3.0) * 0.5 + 0.5;
+    float pulseWave2 = sin(hullDist2 * 14.0 - t * 2.2 + 1.5) * 0.5 + 0.5;
+    float pulseWave = (pulseWave1 + pulseWave2 * 0.7) / 1.7;
+    pulseWave = pow(pulseWave, 2.0);
+    float pulseMask = smoothstep(0.0, 0.15, logoHull) * smoothstep(0.9, 0.3, hullDist2);
+    col += vec3(0.9, 0.2, 0.5) * pulseWave * pulseMask * 0.5;
+
+    // Darken background behind logo hull for better SVG visibility
     float darkenAmount = smoothstep(0.0, 0.3, logoHull) * 0.7;
     col = mix(col, col * 0.15, darkenAmount);
     
