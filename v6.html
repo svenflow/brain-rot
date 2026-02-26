@@ -412,7 +412,9 @@ void main() {
     vec2 rise = vec2(sin(p.x * 4.0 + time) * 0.2, time * 0.5);
     smoke += fbm(q + rise, time) * 0.3;
 
-    smoke = smoothstep(0.2, 0.9, smoke);
+    // Soft contrast curve - no hard edge cutoff
+    smoke = smoke * smoke * (3.0 - 2.0 * smoke); // Hermite smoothing
+    smoke = pow(smoke, 0.8); // Lift shadows slightly
 
     vec3 col = palette(smoke + time * 0.05);
     col *= 0.15 + smoke * 0.7; // Darker overall, more black bg
@@ -458,8 +460,8 @@ void main() {
     float ringMask = exp(-distFromCenter2 * 0.6);
     col += vec3(1.0, 0.35, 0.65) * rings * ringMask * 0.4;
 
-    // Darken background behind logo hull for better SVG visibility
-    float darkenAmount = smoothstep(0.0, 0.3, logoHull) * 0.7;
+    // Darken background behind logo hull - soft transition
+    float darkenAmount = logoHull * logoHull * 0.7; // Quadratic, no edge
     col = mix(col, col * 0.15, darkenAmount);
     
     // Soft logo glow integration
