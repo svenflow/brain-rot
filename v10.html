@@ -407,8 +407,8 @@ void main() {
 
     // Darken background behind logo hull for better SVG visibility
     float logoHull = getLogoHull(uv);
-    float darkenAmount = smoothstep(0.0, 0.5, logoHull) * 0.6;
-    col *= 1.0 - darkenAmount;
+    float darkenAmount = smoothstep(0.0, 0.3, logoHull) * 0.7;
+    col = mix(col, col * 0.15, darkenAmount);
     
     // Soft logo glow integration
     float logoGlow = getLogoGlow(uv, 0.014);
@@ -416,7 +416,7 @@ void main() {
     
     // Particle attractor glow
     col += palette(0.5) * logoGlow * 0.4;
-    col += vec3(1.0, 0.5, 0.85) * softLogo * 0.28 * (0.5 + 0.5 * sin(t * 2.5));
+    col += vec3(1.0, 0.5, 0.85) * softLogo * 0.18 * (0.5 + 0.5 * sin(t * 2.5));
     col = mix(col, col * 1.2 + vec3(0.2, 0.05, 0.15), logoGlow * 0.4);
 
     col *= 1.0 - smoothstep(0.2, 1.2, length(p));

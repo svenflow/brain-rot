@@ -397,8 +397,8 @@ void main() {
 
     // Darken background behind logo hull for better SVG visibility
     float logoHull = getLogoHull(uv);
-    float darkenAmount = smoothstep(0.0, 0.5, logoHull) * 0.6;
-    col *= 1.0 - darkenAmount;
+    float darkenAmount = smoothstep(0.0, 0.3, logoHull) * 0.7;
+    col = mix(col, col * 0.15, darkenAmount);
     
     // Soft logo glow integration
     float logoGlow = getLogoGlow(uv, 0.014);
@@ -406,7 +406,7 @@ void main() {
     
     // Organic glow blending
     col += palette(pattern + 0.3) * logoGlow * 0.4;
-    col += vec3(1.0, 0.45, 0.8) * softLogo * 0.28 * (0.6 + 0.4 * sin(t * 2.0));
+    col += vec3(1.0, 0.45, 0.8) * softLogo * 0.18 * (0.6 + 0.4 * sin(t * 2.0));
     col = mix(col, col + vec3(0.25, 0.08, 0.2), logoGlow * 0.4);
 
     col *= 1.0 - smoothstep(0.15, 1.2, length(p));
