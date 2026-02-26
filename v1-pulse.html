@@ -3,20 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brain Rot</title>
+    <title>Brain Rot - v1-pulse</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #000; overflow: hidden; }
         #shader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
-        .logo { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; height: 50vh; pointer-events: none; }
-        .logo svg { height: 100%; width: auto; }
-        #svgCanvas { display: none; }
+        .logo { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; height: 50vh; }
+        .logo svg { height: 100%; width: auto; filter: drop-shadow(0 0 40px rgba(237, 40, 144, 0.4)); }
     </style>
 </head>
 <body>
     <canvas id="shader"></canvas>
-    <canvas id="svgCanvas"></canvas>
-    <div class="logo" id="logoContainer">
+    <div class="logo">
 <?xml version="1.0" encoding="UTF-8"?>
 <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 703.91 933.59">
   <defs>
@@ -200,145 +198,44 @@
     <script>
         const canvas = document.getElementById('shader');
         const gl = canvas.getContext('webgl');
-        const svgCanvas = document.getElementById('svgCanvas');
-        const svgCtx = svgCanvas.getContext('2d');
-        
-        let logoTexture = null;
-        let logoRect = { x: 0, y: 0, w: 1, h: 1 };
-        
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            updateLogoTexture();
-        }
-        
-        function updateLogoTexture() {
-            const logo = document.querySelector('.logo svg');
-            const rect = logo.getBoundingClientRect();
-            
-            // Store normalized logo position
-            logoRect.x = rect.left / window.innerWidth;
-            logoRect.y = 1.0 - (rect.bottom / window.innerHeight); // flip Y
-            logoRect.w = rect.width / window.innerWidth;
-            logoRect.h = rect.height / window.innerHeight;
-            
-            // Render SVG to canvas
-            svgCanvas.width = 512;
-            svgCanvas.height = 512;
-            
-            const img = new Image();
-            const svgData = new XMLSerializer().serializeToString(logo);
-            const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
-            const url = URL.createObjectURL(svgBlob);
-            
-            img.onload = function() {
-                svgCtx.clearRect(0, 0, 512, 512);
-                svgCtx.drawImage(img, 0, 0, 512, 512);
-                URL.revokeObjectURL(url);
-                
-                // Upload to WebGL texture
-                if (!logoTexture) {
-                    logoTexture = gl.createTexture();
-                }
-                gl.bindTexture(gl.TEXTURE_2D, logoTexture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, svgCanvas);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            };
-            img.src = url;
-        }
-        
-        resize();
-        window.onresize = resize;
-        
+        function resize() { canvas.width = innerWidth; canvas.height = innerHeight; gl.viewport(0,0,canvas.width,canvas.height); }
+        resize(); window.onresize = resize;
         const vs = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(vs, 'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}');
         gl.compileShader(vs);
-        
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fs, `
-            precision mediump float;
-            uniform vec2 r;
-            uniform float t;
-            uniform sampler2D logo;
-            uniform vec4 logoRect; // x, y, w, h in normalized coords
-            
-            void main() {
-                vec2 uv = gl_FragCoord.xy / r;
-                
-                // Check if we're in the logo bounding box
-                vec2 logoUV = (uv - logoRect.xy) / logoRect.zw;
-                logoUV.y = 1.0 - logoUV.y; // flip Y for texture
-                
-                float inLogo = 0.0;
-                if (logoUV.x >= 0.0 && logoUV.x <= 1.0 && logoUV.y >= 0.0 && logoUV.y <= 1.0) {
-                    vec4 logoSample = texture2D(logo, logoUV);
-                    inLogo = logoSample.a; // use alpha as mask
-                }
-                
-                // Distance from center
-                float d = length(uv - 0.5);
-                
-                // Animated pulses
-                float pulse1 = sin(d * 12.0 - t * 2.0) * 0.5 + 0.5;
-                float pulse2 = sin(d * 8.0 - t * 1.5 + 1.0) * 0.5 + 0.5;
-                float pulse = (pulse1 * 0.6 + pulse2 * 0.4);
-                
-                // Base color with vignette
-                float vignette = 1.0 - smoothstep(0.2, 0.9, d);
-                vec3 bgColor = mix(vec3(0.05, 0.0, 0.03), vec3(0.4, 0.05, 0.25), pulse * 0.4) * vignette;
-                
-                // Glow effect around logo
-                float glow = inLogo * (0.5 + 0.5 * sin(t * 3.0));
-                bgColor += vec3(0.3, 0.05, 0.2) * glow * 0.5;
-                
-                gl_FragColor = vec4(bgColor, 1.0);
-            }
-        `);
+precision mediump float;
+uniform vec2 r; uniform float t;
+void main() {
+    vec2 uv = gl_FragCoord.xy/r;
+    float d = length(uv - 0.5);
+    float p1 = sin(d*15.0 - t*2.0)*0.5+0.5;
+    float p2 = sin(d*10.0 - t*1.5)*0.5+0.5;
+    float fade = 1.0 - smoothstep(0.0, 0.7, d);
+    float pulse = (p1*0.6 + p2*0.4) * fade * 0.4;
+    vec3 col = mix(vec3(0.08,0.0,0.05), vec3(0.6,0.1,0.4), pulse);
+    col *= 1.0 - smoothstep(0.2, 0.9, d);
+    gl_FragColor = vec4(col, 1.0);
+}`);
         gl.compileShader(fs);
-        
         const prog = gl.createProgram();
-        gl.attachShader(prog, vs);
-        gl.attachShader(prog, fs);
-        gl.linkProgram(prog);
-        gl.useProgram(prog);
-        
+        gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog); gl.useProgram(prog);
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-        
         const p = gl.getAttribLocation(prog, 'p');
         gl.enableVertexAttribArray(p);
         gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
-        
         const rLoc = gl.getUniformLocation(prog, 'r');
         const tLoc = gl.getUniformLocation(prog, 't');
-        const logoLoc = gl.getUniformLocation(prog, 'logo');
-        const logoRectLoc = gl.getUniformLocation(prog, 'logoRect');
-        
         function render(time) {
             gl.uniform2f(rLoc, canvas.width, canvas.height);
             gl.uniform1f(tLoc, time * 0.001);
-            gl.uniform4f(logoRectLoc, logoRect.x, logoRect.y, logoRect.w, logoRect.h);
-            
-            if (logoTexture) {
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, logoTexture);
-                gl.uniform1i(logoLoc, 0);
-            }
-            
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             requestAnimationFrame(render);
         }
-        
-        // Wait for SVG to load then start
-        setTimeout(() => {
-            updateLogoTexture();
-            render(0);
-        }, 100);
+        render(0);
     </script>
 </body>
 </html>
