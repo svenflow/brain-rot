@@ -363,13 +363,24 @@ void main() {
     float hull = getLogoHull(uv);
     float hullDist = 1.0 - hull;
 
-    // Pulsating waves that travel outward through entire smoke field
-    // Use distance from center as wave source (since hull is near center)
+    // Pulsating waves - organic breathing with asymmetric contraction
+    // Uses skewed sine (elastic recoil) + power curve for snap-back effect
     float distFromCenter = length(p);
-    float wave1 = sin(distFromCenter * 6.0 - t * 2.5) * 0.5 + 0.5;
-    float wave2 = sin(distFromCenter * 4.0 - t * 1.8 + 1.2) * 0.5 + 0.5;
+
+    // Primary wave with skewed phase - contraction snaps back faster than expansion
+    float phase1 = distFromCenter * 6.0 - t * 2.5;
+    float skewedPhase1 = phase1 + cos(phase1) * 0.4; // Skew: expand slow, contract fast
+    float rawWave1 = sin(skewedPhase1) * 0.5 + 0.5;
+    // Power curve: hangs at peak, accelerates into contraction
+    float wave1 = mix(pow(rawWave1, 0.6), pow(rawWave1, 2.5), rawWave1);
+
+    // Secondary wave with different skew for compound organic motion
+    float phase2 = distFromCenter * 4.0 - t * 1.8 + 1.2;
+    float skewedPhase2 = phase2 + cos(phase2) * 0.3;
+    float rawWave2 = sin(skewedPhase2) * 0.5 + 0.5;
+    float wave2 = mix(pow(rawWave2, 0.5), pow(rawWave2, 2.0), rawWave2);
+
     float wave = (wave1 + wave2 * 0.6) / 1.6;
-    wave = pow(wave, 1.3);
 
     // Stronger force near center, but extends to entire field
     float forceFalloff = 1.0 - smoothstep(0.0, 1.2, distFromCenter);
@@ -413,15 +424,23 @@ void main() {
     col += vec3(0.9, 0.2, 0.5) * eddie * 0.1 * smoke;
 
 
-    // Visible pulsating wave RINGS across ENTIRE smoke field
+    // Visible pulsating wave RINGS - organic breathing matching smoke
     float logoHull = getLogoHull(uv);
     float distFromCenter2 = length(p);
 
-    // Rings that travel outward from center through ALL the smoke
-    float ring1 = sin(distFromCenter2 * 10.0 - t * 2.5) * 0.5 + 0.5;
-    float ring2 = sin(distFromCenter2 * 7.0 - t * 1.8 + 1.0) * 0.5 + 0.5;
+    // Rings with skewed phase for organic snap-back
+    float ringPhase1 = distFromCenter2 * 10.0 - t * 2.5;
+    float skewedRing1 = ringPhase1 + cos(ringPhase1) * 0.4;
+    float rawRing1 = sin(skewedRing1) * 0.5 + 0.5;
+    float ring1 = mix(pow(rawRing1, 0.6), pow(rawRing1, 2.5), rawRing1);
+
+    float ringPhase2 = distFromCenter2 * 7.0 - t * 1.8 + 1.0;
+    float skewedRing2 = ringPhase2 + cos(ringPhase2) * 0.3;
+    float rawRing2 = sin(skewedRing2) * 0.5 + 0.5;
+    float ring2 = mix(pow(rawRing2, 0.5), pow(rawRing2, 2.0), rawRing2);
+
     float rings = (ring1 + ring2 * 0.5) / 1.5;
-    rings = pow(rings, 2.0); // Sharp bright rings
+    rings = pow(rings, 1.5); // Slight sharpening
 
     // Visible across entire field, only fade at edges
     float ringMask = smoothstep(1.2, 0.1, distFromCenter2);
